@@ -36,9 +36,6 @@ export default async function handler(req, res) {
         internalStage = 'knockout';
       }
 
-      // לוגיקה משופרת: בודק שערים רגילים, ואז זמן פציעות, ואז הארכה
-      // אנחנו לא לוקחים את תוצאת הפנדלים כתוצאת המשחק (כי זה נחשב תיקו בסטטיסטיקה), 
-      // אבל אנחנו רוצים לפחות את ה-3:3 של הגמר.
       const homeScore = goals.home ?? score?.fulltime?.home ?? score?.extratime?.home ?? 0;
       const awayScore = goals.away ?? score?.fulltime?.away ?? score?.extratime?.away ?? 0;
 
@@ -50,6 +47,8 @@ export default async function handler(req, res) {
         away_flag: teams.away.logo,
         home_score: homeScore,
         away_score: awayScore,
+        home_penalty: score?.penalty?.home, // שמירת פנדל בית
+        away_penalty: score?.penalty?.away, // שמירת פנדל חוץ
         status: fixture.status.short.toLowerCase(),
         kickoff_time: fixture.date,
         stage: internalStage
@@ -61,9 +60,7 @@ export default async function handler(req, res) {
       }
     }
 
-    return res.status(200).json({ 
-      message: `Updated. Errors: ${errorsCount}.` 
-    });
+    return res.status(200).json({ message: `Updated. Errors: ${errorsCount}.` });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }

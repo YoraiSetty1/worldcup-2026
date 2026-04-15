@@ -18,12 +18,8 @@ function isMatchLive(match) {
 
 export default function MatchCard({ match, bet, onBet, compact = false, flipped = false }) {
   const computedLive = isMatchLive(match);
-  
-  // הגדרה רחבה יותר למשחק שהסתיים (כולל פנדלים והארכה)
   const isFinished = ['ft', 'aet', 'pen', 'finished'].includes(match.status?.toLowerCase());
-  
-  const isLocked = isFinished ||
-    (match.kickoff_time && moment(match.kickoff_time).diff(moment(), 'hours') < 2);
+  const isLocked = isFinished || (match.kickoff_time && moment(match.kickoff_time).diff(moment(), 'hours') < 2);
 
   const stageLabels = {
     group: `בית ${match.group_letter || ''}`,
@@ -59,12 +55,19 @@ export default function MatchCard({ match, bet, onBet, compact = false, flipped 
           </div>
 
           <div className="flex flex-col items-center px-4">
-            {/* כאן התיקון הקריטי: מציגים תוצאה אם יש מספר, בלי קשר לסטטוס */}
             {(match.home_score !== null && match.home_score !== undefined) ? (
-              <div className="flex items-center gap-2">
-                <span className="text-3xl font-black">{match.home_score}</span>
-                <span className="text-lg text-muted-foreground">:</span>
-                <span className="text-3xl font-black">{match.away_score}</span>
+              <div className="flex flex-col items-center">
+                <div className="flex items-center gap-2">
+                  <span className="text-3xl font-black">{match.home_score}</span>
+                  <span className="text-lg text-muted-foreground">:</span>
+                  <span className="text-3xl font-black">{match.away_score}</span>
+                </div>
+                {/* הצגת פנדלים אם קיימים בנתונים */}
+                {(match.home_penalty !== null && match.home_penalty !== undefined) && (
+                  <span className="text-[10px] font-bold text-muted-foreground mt-1 bg-muted px-2 py-0.5 rounded-full">
+                    ({match.home_penalty} - {match.away_penalty} בפנדלים)
+                  </span>
+                )}
               </div>
             ) : (
               <span className="text-lg font-bold text-muted-foreground">VS</span>
