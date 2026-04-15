@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { auth } from '../api/supabase';
+import { auth } from '../lib/supabase.js';
 import { toast } from 'sonner';
 
 export default function Login() {

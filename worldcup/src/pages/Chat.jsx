@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Send, MessageCircle } from 'lucide-react';
-import { chatApi } from '../api/supabase';
+import { chatApi } from '../lib/supabase.js';
 import moment from 'moment';
 
 export default function Chat() {

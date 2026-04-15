@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Trophy, Crown, Medal } from 'lucide-react';
-import { profilesApi, betsApi } from '../api/supabase';
+import { profilesApi, betsApi } from '../lib/supabase.js';
 
 export function Leaderboard() {
   const { user } = useOutletContext();

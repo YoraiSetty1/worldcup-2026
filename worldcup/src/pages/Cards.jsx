@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Shield, Zap, RefreshCw, Star, Lock } from 'lucide-react';
-import { cardsApi, matchupsApi } from '../api/supabase';
+import { cardsApi, matchupsApi } from '../lib/supabase.js';
 import { toast } from 'sonner';
 
 const CARD_META = {

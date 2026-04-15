@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { User } from 'lucide-react';
-import { profilesApi, auth } from '../api/supabase';
+import { profilesApi, auth } from '../lib/supabase.js';
 import { toast } from 'sonner';
 import { useAuth } from '../lib/AuthContext';
 

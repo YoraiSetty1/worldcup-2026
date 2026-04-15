@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useOutletContext, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Trophy, Target, Swords, Calendar, ChevronLeft } from 'lucide-react';
-import { matchesApi, profilesApi, betsApi } from '../api/supabase';
+import { matchesApi, profilesApi, betsApi } from '../lib/supabase.js';
 import MatchCard from '../components/MatchCard';
 import Onboarding from './Onboarding';
 

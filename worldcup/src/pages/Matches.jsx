@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import moment from 'moment';
 import 'moment/locale/he';
-import { matchesApi, betsApi } from '../api/supabase';
+import { matchesApi, betsApi } from '../lib/supabase.js';
 import MatchCard from '../components/MatchCard';
 import { toast } from 'sonner';
 

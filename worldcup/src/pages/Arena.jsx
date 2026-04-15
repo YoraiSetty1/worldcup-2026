@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Swords, TrendingUp, Zap } from 'lucide-react';
-import { matchupsApi, profilesApi, cardsApi, matchesApi } from '../api/supabase';
+import { matchupsApi, profilesApi, cardsApi, matchesApi } from '../lib/supabase.js';
 import { motion } from 'framer-motion';
 
 export function Arena() {

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useAuth } from '../lib/AuthContext';
-import { profilesApi, cardsApi } from '../api/supabase';
+import { profilesApi, cardsApi } from '../lib/supabase.js';
 import { toast } from 'sonner';
 
 const CARD_TYPES = ['team_agnostic', 'result_flip', 'score_change', 'block_exact', 'shield'];
