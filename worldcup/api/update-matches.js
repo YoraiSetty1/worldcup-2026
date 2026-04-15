@@ -30,16 +30,17 @@ export default async function handler(req, res) {
     for (const item of data.response) {
       const { fixture, teams, goals, league, score } = item;
       
-      // תרגום השלבים
       let internalStage = 'group';
       const apiRound = league.round.toLowerCase();
       if (apiRound.includes('final') || apiRound.includes('round of') || apiRound.includes('quarter') || apiRound.includes('semi')) {
         internalStage = 'knockout';
       }
 
-      // --- התיקון החדש: לוגיקה חכמה למשיכת תוצאה סופית (גם בהארכה/פנדלים) ---
-      const homeScore = goals.home ?? score?.fulltime?.home ?? score?.extratime?.home;
-      const awayScore = goals.away ?? score?.fulltime?.away ?? score?.extratime?.away;
+      // לוגיקה משופרת: בודק שערים רגילים, ואז זמן פציעות, ואז הארכה
+      // אנחנו לא לוקחים את תוצאת הפנדלים כתוצאת המשחק (כי זה נחשב תיקו בסטטיסטיקה), 
+      // אבל אנחנו רוצים לפחות את ה-3:3 של הגמר.
+      const homeScore = goals.home ?? score?.fulltime?.home ?? score?.extratime?.home ?? 0;
+      const awayScore = goals.away ?? score?.fulltime?.away ?? score?.extratime?.away ?? 0;
 
       const { error } = await supabase.from('matches').upsert({
         api_id: fixture.id,
@@ -55,13 +56,13 @@ export default async function handler(req, res) {
       }, { onConflict: 'api_id' });
 
       if (error) {
-        console.error("Supabase Error:", error);
+        console.error(`Error with match ${fixture.id}:`, error.message);
         errorsCount++;
       }
     }
 
     return res.status(200).json({ 
-      message: errorsCount > 0 ? `Updated with ${errorsCount} errors` : 'Matches updated successfully' 
+      message: `Updated. Errors: ${errorsCount}.` 
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });
