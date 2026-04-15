@@ -1,0 +1,15 @@
+{
+  "name": "מונדיאל 2026 - טורניר ניחושים",
+  "short_name": "מונדיאל 2026",
+  "description": "טורניר ניחושים למונדיאל 2026",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#16a34a",
+  "dir": "rtl",
+  "lang": "he",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
