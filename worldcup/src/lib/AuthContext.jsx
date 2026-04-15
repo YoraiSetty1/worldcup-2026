@@ -9,22 +9,45 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // פונקציה פנימית שמושכת את הפרופיל המלא מה-DB
+  const fetchProfile = async (sessionUser) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', sessionUser.id)
+        .single();
+
+      if (error && error.code !== 'PGRST116') throw error;
+      
+      // איחוד נתוני ההתחברות עם נתוני הפרופיל (הכינוי והקבוצה)
+      setUser(data ? { ...sessionUser, ...data } : sessionUser);
+    } catch (err) {
+      console.error("Error fetching profile:", err);
+      setUser(sessionUser);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // 1. בדיקה ראשונית כשהאתר עולה/מרפרש
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        console.error("Auth Error:", error);
+    // בדיקת סשן קיים בריפרש
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        fetchProfile(session.user);
+      } else {
+        setLoading(false);
       }
-      setUser(session?.user ?? null);
-      setLoading(false); // <--- זה מה שמעלים את הגלגל!
-    }).catch(() => {
-      setLoading(false); // רשת ביטחון במקרה של שגיאה
     });
 
-    // 2. האזנה לשינויים (התחברות/התנתקות)
+    // האזנה לשינויים (התחברות/התנתקות)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setLoading(false); // <--- מוודא שהגלגל יעלם גם אחרי התחברות
+      if (session) {
+        fetchProfile(session.user);
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
     });
 
     return () => subscription.unsubscribe();
