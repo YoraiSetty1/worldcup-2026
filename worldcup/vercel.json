@@ -8,5 +8,15 @@
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/update-matches",
+      "schedule": "*/10 16-23,0-5 * * *"
+    },
+    {
+      "path": "/api/update-matches",
+      "schedule": "0 6-15 * * *"
+    }
   ]
 }
