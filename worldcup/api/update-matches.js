@@ -13,7 +13,7 @@ export default async function handler(req, res) {
 
   const API_KEY = process.env.VITE_API_SPORTS_KEY;
   const LEAGUE_ID = 1; 
-  const SEASON = 2026;
+  const SEASON = 2022;
 
   try {
     const response = await fetch(`https://v3.football.api-sports.io/fixtures?league=${LEAGUE_ID}&season=${SEASON}`, {
