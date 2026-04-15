@@ -1,7 +1,7 @@
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuth } from '../lib/AuthContext';
-import { profilesApi } from '../api/supabase';
+import { profilesApi } from '../lib/supabase.js'; // הנה התיקון! שינינו ל-lib והוספנו .js
 import TopNav from './TopNav';
 
 export default function Layout() {
