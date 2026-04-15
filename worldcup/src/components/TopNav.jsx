@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { Trophy, Calendar, Swords, CreditCard, MessageCircle, User, Shield, Menu, X } from 'lucide-react';
-import { auth } from '../api/supabase';
+import { auth } from '../lib/supabase.js';
 import { useAuth } from '../lib/AuthContext';
 
 const NAV_ITEMS = [
