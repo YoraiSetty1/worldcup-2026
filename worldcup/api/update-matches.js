@@ -26,11 +26,15 @@ export default async function handler(req, res) {
       return res.status(200).json({ message: 'No matches found for this season yet' });
     }
 
+    let errorsCount = 0;
+    let lastError = null;
+
     for (const item of data.response) {
       const { fixture, teams, goals } = item;
       
-      await supabase.from('matches').upsert({
-        id: fixture.id.toString(),
+      // התיקון: שימוש ב-api_id ומיפוי נכון + תפיסת שגיאות
+      const { error } = await supabase.from('matches').upsert({
+        api_id: fixture.id, // משתמשים בעמודה החדשה שלנו שיודעת לקבל מספרים!
         home_team_name: teams.home.name,
         away_team_name: teams.away.name,
         home_flag: teams.home.logo,
@@ -39,7 +43,18 @@ export default async function handler(req, res) {
         away_score: goals.away,
         status: fixture.status.short.toLowerCase(),
         kickoff_time: fixture.date
-      }, { onConflict: 'id' });
+      }, { onConflict: 'api_id' }); // ה-Upsert בודק כפילויות לפי ה-api_id
+
+      if (error) {
+        console.error("Supabase Insert Error:", error);
+        errorsCount++;
+        lastError = error.message;
+      }
+    }
+
+    // אם היו שגיאות בשמירה ל-Supabase, הבוט ידווח עליהן ולא ישקר שהכל טוב
+    if (errorsCount > 0) {
+      return res.status(500).json({ error: `Finished with ${errorsCount} database errors. Last error: ${lastError}` });
     }
 
     return res.status(200).json({ message: 'Matches updated successfully' });
