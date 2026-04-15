@@ -6,7 +6,6 @@ const supabase = createClient(
 );
 
 export default async function handler(req, res) {
-  // בדיקה שהמפתחות קיימים בשרת
   if (!process.env.VITE_SUPABASE_URL || !process.env.VITE_API_SPORTS_KEY) {
     return res.status(500).json({ error: "Missing environment variables" });
   }
@@ -23,18 +22,25 @@ export default async function handler(req, res) {
     const data = await response.json();
 
     if (!data.response || data.response.length === 0) {
-      return res.status(200).json({ message: 'No matches found for this season yet' });
+      return res.status(200).json({ message: 'No matches found' });
     }
 
     let errorsCount = 0;
-    let lastError = null;
 
     for (const item of data.response) {
-      const { fixture, teams, goals } = item;
+      const { fixture, teams, goals, league } = item;
       
-      // התיקון: שימוש ב-api_id ומיפוי נכון + תפיסת שגיאות
+      // --- התיקון החדש: תרגום השלבים למילים שהאתר מבין ---
+      let internalStage = 'group';
+      const apiRound = league.round.toLowerCase();
+      
+      // אם השם מה-API מכיל מילים של נוקאאוט, נסמן אותו כ-knockout
+      if (apiRound.includes('final') || apiRound.includes('round of') || apiRound.includes('quarter') || apiRound.includes('semi')) {
+        internalStage = 'knockout';
+      }
+
       const { error } = await supabase.from('matches').upsert({
-        api_id: fixture.id, // משתמשים בעמודה החדשה שלנו שיודעת לקבל מספרים!
+        api_id: fixture.id,
         home_team_name: teams.home.name,
         away_team_name: teams.away.name,
         home_flag: teams.home.logo,
@@ -42,22 +48,16 @@ export default async function handler(req, res) {
         home_score: goals.home,
         away_score: goals.away,
         status: fixture.status.short.toLowerCase(),
-        kickoff_time: fixture.date
-      }, { onConflict: 'api_id' }); // ה-Upsert בודק כפילויות לפי ה-api_id
+        kickoff_time: fixture.date,
+        stage: internalStage // שימוש בשלב המתורגם
+      }, { onConflict: 'api_id' });
 
-      if (error) {
-        console.error("Supabase Insert Error:", error);
-        errorsCount++;
-        lastError = error.message;
-      }
+      if (error) errorsCount++;
     }
 
-    // אם היו שגיאות בשמירה ל-Supabase, הבוט ידווח עליהן ולא ישקר שהכל טוב
-    if (errorsCount > 0) {
-      return res.status(500).json({ error: `Finished with ${errorsCount} database errors. Last error: ${lastError}` });
-    }
-
-    return res.status(200).json({ message: 'Matches updated successfully' });
+    return res.status(200).json({ 
+      message: errorsCount > 0 ? `Updated with ${errorsCount} errors` : 'Matches updated successfully' 
+    });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
