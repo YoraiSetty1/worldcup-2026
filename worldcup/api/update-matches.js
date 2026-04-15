@@ -15,17 +15,20 @@ export default async function handler(req, res) {
   const SEASON = 2022;
 
   try {
-    const response = await fetch(`https://v3.football.api-sports.io/fixtures?league=${LEAGUE_ID}&season=${SEASON}`, {
-      headers: { 'x-apisports-key': API_KEY }
+    const url = `https://v3.football.api-sports.io/fixtures?league=${LEAGUE_ID}&season=${SEASON}`;
+    const response = await fetch(url, {
+      headers: { 
+        'x-apisports-key': API_KEY,
+        'x-apisports-host': 'v3.football.api-sports.io' // התיקון שמונע את החסימה
+      }
     });
     
     const data = await response.json();
 
-    // בדיקה אם ה-API החזיר תשובה ריקה או שגיאה
     if (!data.response || data.response.length === 0) {
       return res.status(200).json({ 
-        message: 'No matches found from API',
-        api_status: data.errors || 'Unknown issue'
+        message: 'No matches found',
+        details: data.errors || 'API returned empty list'
       });
     }
 
@@ -58,15 +61,10 @@ export default async function handler(req, res) {
         stage: internalStage
       }, { onConflict: 'api_id' });
 
-      if (error) {
-        console.error("Supabase Error:", error.message);
-        errorsCount++;
-      }
+      if (error) errorsCount++;
     }
 
-    return res.status(200).json({ 
-      message: `Successfully processed ${data.response.length} matches. Errors: ${errorsCount}` 
-    });
+    return res.status(200).json({ message: `Success! Processed ${data.response.length} matches.` });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
