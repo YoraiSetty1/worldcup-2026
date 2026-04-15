@@ -28,16 +28,18 @@ export default async function handler(req, res) {
     let errorsCount = 0;
 
     for (const item of data.response) {
-      const { fixture, teams, goals, league } = item;
+      const { fixture, teams, goals, league, score } = item;
       
-      // --- התיקון החדש: תרגום השלבים למילים שהאתר מבין ---
+      // תרגום השלבים
       let internalStage = 'group';
       const apiRound = league.round.toLowerCase();
-      
-      // אם השם מה-API מכיל מילים של נוקאאוט, נסמן אותו כ-knockout
       if (apiRound.includes('final') || apiRound.includes('round of') || apiRound.includes('quarter') || apiRound.includes('semi')) {
         internalStage = 'knockout';
       }
+
+      // --- התיקון החדש: לוגיקה חכמה למשיכת תוצאה סופית (גם בהארכה/פנדלים) ---
+      const homeScore = goals.home ?? score?.fulltime?.home ?? score?.extratime?.home;
+      const awayScore = goals.away ?? score?.fulltime?.away ?? score?.extratime?.away;
 
       const { error } = await supabase.from('matches').upsert({
         api_id: fixture.id,
@@ -45,14 +47,17 @@ export default async function handler(req, res) {
         away_team_name: teams.away.name,
         home_flag: teams.home.logo,
         away_flag: teams.away.logo,
-        home_score: goals.home,
-        away_score: goals.away,
+        home_score: homeScore,
+        away_score: awayScore,
         status: fixture.status.short.toLowerCase(),
         kickoff_time: fixture.date,
-        stage: internalStage // שימוש בשלב המתורגם
+        stage: internalStage
       }, { onConflict: 'api_id' });
 
-      if (error) errorsCount++;
+      if (error) {
+        console.error("Supabase Error:", error);
+        errorsCount++;
+      }
     }
 
     return res.status(200).json({ 
