@@ -24,7 +24,7 @@ export default function Onboarding({ onComplete }) {
     for (const card_type of CARD_TYPES) {
       await cardsApi.create({ user_email: user.email, card_type }).catch(() => {});
     }
-    const updated = await import('../api/supabase').then(m => m.auth.me());
+    const updated = await import('../lib/supabase.js').then(m => m.auth.me());
     setUser(updated);
     toast.success('ברוך הבא לטורניר! 🏆');
     onComplete?.();
