@@ -3,38 +3,32 @@ import { Clock, Lock, CheckCircle } from 'lucide-react';
 import moment from 'moment';
 
 function isMatchLive(match) {
-  // רשימת הסטטוסים המדויקת של ה-API למשחק שבאמת רץ עכשיו
   const liveStatuses = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE'];
-  
-  // אם הסטטוס הוא אחד מאלה - זה לייב בוודאות
   if (liveStatuses.includes(match.status?.toUpperCase())) return true;
 
-  // רשימת סטטוסים של משחקים שנגמרו (כולל הארכות ופנדלים)
   const finishedStatuses = ['FT', 'AET', 'PEN', 'FINISHED'];
   if (finishedStatuses.includes(match.status?.toUpperCase())) return false;
 
-  // הגנה נוספת: אם עבר זמן המשחק ביותר מ-3 שעות, כנראה הוא כבר נגמר
   if (match.kickoff_time) {
     const hoursSinceStart = moment().diff(moment(match.kickoff_time), 'hours');
     if (hoursSinceStart > 3) return false;
   }
-
   return false;
 }
+
 export default function MatchCard({ match, bet, onBet, compact = false, flipped = false }) {
   const computedLive = isMatchLive(match);
   
-  // הוספת 'ft' כסטטוס סיום
-  const isFinished = match.status === 'finished' || match.status === 'ft';
-  const effectiveStatus = computedLive ? 'live' : isFinished ? 'finished' : match.status;
+  // הגדרה רחבה יותר למשחק שהסתיים (כולל פנדלים והארכה)
+  const isFinished = ['ft', 'aet', 'pen', 'finished'].includes(match.status?.toLowerCase());
   
   const isLocked = isFinished ||
     (match.kickoff_time && moment(match.kickoff_time).diff(moment(), 'hours') < 2);
 
   const stageLabels = {
     group: `בית ${match.group_letter || ''}`,
-    round_of_32: 'שלב ה-32', round_of_16: 'שמינית גמר',
-    quarter_final: 'רבע גמר', semi_final: 'חצי גמר', final: 'גמר',
+    knockout: 'שלב הנוקאאוט',
+    final: 'גמר',
   };
 
   const statusColor = computedLive ? 'text-red-500' : isFinished ? 'text-muted-foreground' : 'text-blue-500';
@@ -55,7 +49,6 @@ export default function MatchCard({ match, bet, onBet, compact = false, flipped 
 
       <div className="px-4 py-4">
         <div className="flex items-center justify-between">
-          {/* קבוצה מארחת */}
           <div className="flex flex-col items-center gap-1 flex-1">
             {match.home_flag?.startsWith('http') ? (
               <img src={match.home_flag} alt="" className="w-10 h-6 object-contain shadow-sm rounded-sm" />
@@ -66,11 +59,12 @@ export default function MatchCard({ match, bet, onBet, compact = false, flipped 
           </div>
 
           <div className="flex flex-col items-center px-4">
-            {isFinished || computedLive ? (
+            {/* כאן התיקון הקריטי: מציגים תוצאה אם יש מספר, בלי קשר לסטטוס */}
+            {(match.home_score !== null && match.home_score !== undefined) ? (
               <div className="flex items-center gap-2">
-                <span className="text-3xl font-black">{match.home_score ?? '-'}</span>
+                <span className="text-3xl font-black">{match.home_score}</span>
                 <span className="text-lg text-muted-foreground">:</span>
-                <span className="text-3xl font-black">{match.away_score ?? '-'}</span>
+                <span className="text-3xl font-black">{match.away_score}</span>
               </div>
             ) : (
               <span className="text-lg font-bold text-muted-foreground">VS</span>
@@ -82,7 +76,6 @@ export default function MatchCard({ match, bet, onBet, compact = false, flipped 
             )}
           </div>
 
-          {/* קבוצה אורחת */}
           <div className="flex flex-col items-center gap-1 flex-1">
             {match.away_flag?.startsWith('http') ? (
               <img src={match.away_flag} alt="" className="w-10 h-6 object-contain shadow-sm rounded-sm" />
@@ -100,9 +93,7 @@ export default function MatchCard({ match, bet, onBet, compact = false, flipped 
                 <Lock size={14} />
                 {bet ? (
                   <span>
-                    הניחוש שלך: <span className={flipped ? 'text-red-600 font-black' : ''}>{flipped ? bet.away_score : bet.home_score}</span>
-                    {' - '}
-                    <span className={flipped ? 'text-red-600 font-black' : ''}>{flipped ? bet.home_score : bet.away_score}</span>
+                    הניחוש שלך: {flipped ? bet.away_score : bet.home_score} - {flipped ? bet.home_score : bet.away_score}
                     {bet.points_earned > 0 && <span className="text-primary font-bold mr-2">+{bet.points_earned} נק׳</span>}
                   </span>
                 ) : <span>ההימורים נסגרו</span>}
