@@ -3,16 +3,24 @@ import { Clock, Lock, CheckCircle } from 'lucide-react';
 import moment from 'moment';
 
 function isMatchLive(match) {
-  if (match.status === 'finished') return false;
-  if (match.status === 'live') return true;
+  // בדיקה מקיפה יותר לסטטוס חי לפי ה-API
+  const liveStatuses = ['live', '1h', '2h', 'et', 'p', 'bt'];
+  if (liveStatuses.includes(match.status)) return true;
+  if (match.status === 'finished' || match.status === 'ft') return false;
   if (!match.kickoff_time) return false;
-  return new Date() >= new Date(match.kickoff_time) && match.status !== 'finished';
+  
+  // רשת ביטחון: אם עבר זמן הבעיטה וזה לא הסתיים
+  return new Date() >= new Date(match.kickoff_time) && match.status !== 'finished' && match.status !== 'ft';
 }
 
 export default function MatchCard({ match, bet, onBet, compact = false, flipped = false }) {
   const computedLive = isMatchLive(match);
-  const effectiveStatus = computedLive ? 'live' : match.status;
-  const isLocked = match.status === 'finished' ||
+  
+  // הוספת 'ft' כסטטוס סיום
+  const isFinished = match.status === 'finished' || match.status === 'ft';
+  const effectiveStatus = computedLive ? 'live' : isFinished ? 'finished' : match.status;
+  
+  const isLocked = isFinished ||
     (match.kickoff_time && moment(match.kickoff_time).diff(moment(), 'hours') < 2);
 
   const stageLabels = {
@@ -21,8 +29,8 @@ export default function MatchCard({ match, bet, onBet, compact = false, flipped 
     quarter_final: 'רבע גמר', semi_final: 'חצי גמר', final: 'גמר',
   };
 
-  const statusColor = effectiveStatus === 'live' ? 'text-red-500' : effectiveStatus === 'finished' ? 'text-muted-foreground' : 'text-blue-500';
-  const statusLabel = computedLive ? 'שידור חי' : effectiveStatus === 'finished' ? 'הסתיים' : 'טרם התחיל';
+  const statusColor = computedLive ? 'text-red-500' : isFinished ? 'text-muted-foreground' : 'text-blue-500';
+  const statusLabel = computedLive ? 'שידור חי' : isFinished ? 'הסתיים' : 'טרם התחיל';
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -39,13 +47,18 @@ export default function MatchCard({ match, bet, onBet, compact = false, flipped 
 
       <div className="px-4 py-4">
         <div className="flex items-center justify-between">
+          {/* קבוצה מארחת */}
           <div className="flex flex-col items-center gap-1 flex-1">
-            <span className="text-2xl">{match.home_flag || '🏳️'}</span>
+            {match.home_flag?.startsWith('http') ? (
+              <img src={match.home_flag} alt="" className="w-10 h-6 object-contain shadow-sm rounded-sm" />
+            ) : (
+              <span className="text-2xl">{match.home_flag || '🏳️'}</span>
+            )}
             <span className="text-sm font-semibold text-center leading-tight">{match.home_team_name}</span>
           </div>
 
           <div className="flex flex-col items-center px-4">
-            {match.status === 'finished' || match.status === 'live' ? (
+            {isFinished || computedLive ? (
               <div className="flex items-center gap-2">
                 <span className="text-3xl font-black">{match.home_score ?? '-'}</span>
                 <span className="text-lg text-muted-foreground">:</span>
@@ -55,14 +68,19 @@ export default function MatchCard({ match, bet, onBet, compact = false, flipped 
               <span className="text-lg font-bold text-muted-foreground">VS</span>
             )}
             {match.kickoff_time && (
-              <span className="text-xs text-muted-foreground mt-1">
+              <span className="text-xs text-muted-foreground mt-1 text-center" dir="ltr">
                 {moment(match.kickoff_time).format('DD/MM HH:mm')}
               </span>
             )}
           </div>
 
+          {/* קבוצה אורחת */}
           <div className="flex flex-col items-center gap-1 flex-1">
-            <span className="text-2xl">{match.away_flag || '🏳️'}</span>
+            {match.away_flag?.startsWith('http') ? (
+              <img src={match.away_flag} alt="" className="w-10 h-6 object-contain shadow-sm rounded-sm" />
+            ) : (
+              <span className="text-2xl">{match.away_flag || '🏳️'}</span>
+            )}
             <span className="text-sm font-semibold text-center leading-tight">{match.away_team_name}</span>
           </div>
         </div>
