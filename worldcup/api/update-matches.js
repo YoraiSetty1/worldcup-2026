@@ -21,8 +21,12 @@ export default async function handler(req, res) {
     
     const data = await response.json();
 
+    // בדיקה אם ה-API החזיר תשובה ריקה או שגיאה
     if (!data.response || data.response.length === 0) {
-      return res.status(200).json({ message: 'No matches found' });
+      return res.status(200).json({ 
+        message: 'No matches found from API',
+        api_status: data.errors || 'Unknown issue'
+      });
     }
 
     let errorsCount = 0;
@@ -47,20 +51,22 @@ export default async function handler(req, res) {
         away_flag: teams.away.logo,
         home_score: homeScore,
         away_score: awayScore,
-        home_penalty: score?.penalty?.home, // שמירת פנדל בית
-        away_penalty: score?.penalty?.away, // שמירת פנדל חוץ
+        home_penalty: score?.penalty?.home, 
+        away_penalty: score?.penalty?.away, 
         status: fixture.status.short.toLowerCase(),
         kickoff_time: fixture.date,
         stage: internalStage
       }, { onConflict: 'api_id' });
 
       if (error) {
-        console.error(`Error with match ${fixture.id}:`, error.message);
+        console.error("Supabase Error:", error.message);
         errorsCount++;
       }
     }
 
-    return res.status(200).json({ message: `Updated. Errors: ${errorsCount}.` });
+    return res.status(200).json({ 
+      message: `Successfully processed ${data.response.length} matches. Errors: ${errorsCount}` 
+    });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
