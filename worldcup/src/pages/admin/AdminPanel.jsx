@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Shield, CheckCircle } from 'lucide-react';
-import { matchesApi, betsApi, profilesApi, matchupsApi } from '../../api/supabase';
+import { matchesApi, betsApi, profilesApi, matchupsApi } from '../../lib/supabase.js';
 import { toast } from 'sonner';
 import moment from 'moment';
 
