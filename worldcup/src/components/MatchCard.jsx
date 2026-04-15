@@ -3,16 +3,24 @@ import { Clock, Lock, CheckCircle } from 'lucide-react';
 import moment from 'moment';
 
 function isMatchLive(match) {
-  // בדיקה מקיפה יותר לסטטוס חי לפי ה-API
-  const liveStatuses = ['live', '1h', '2h', 'et', 'p', 'bt'];
-  if (liveStatuses.includes(match.status)) return true;
-  if (match.status === 'finished' || match.status === 'ft') return false;
-  if (!match.kickoff_time) return false;
+  // רשימת הסטטוסים המדויקת של ה-API למשחק שבאמת רץ עכשיו
+  const liveStatuses = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE'];
   
-  // רשת ביטחון: אם עבר זמן הבעיטה וזה לא הסתיים
-  return new Date() >= new Date(match.kickoff_time) && match.status !== 'finished' && match.status !== 'ft';
-}
+  // אם הסטטוס הוא אחד מאלה - זה לייב בוודאות
+  if (liveStatuses.includes(match.status?.toUpperCase())) return true;
 
+  // רשימת סטטוסים של משחקים שנגמרו (כולל הארכות ופנדלים)
+  const finishedStatuses = ['FT', 'AET', 'PEN', 'FINISHED'];
+  if (finishedStatuses.includes(match.status?.toUpperCase())) return false;
+
+  // הגנה נוספת: אם עבר זמן המשחק ביותר מ-3 שעות, כנראה הוא כבר נגמר
+  if (match.kickoff_time) {
+    const hoursSinceStart = moment().diff(moment(match.kickoff_time), 'hours');
+    if (hoursSinceStart > 3) return false;
+  }
+
+  return false;
+}
 export default function MatchCard({ match, bet, onBet, compact = false, flipped = false }) {
   const computedLive = isMatchLive(match);
   
