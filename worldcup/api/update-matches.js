@@ -11,63 +11,50 @@ export default async function handler(req, res) {
   }
 
   const API_KEY = process.env.VITE_API_SPORTS_KEY;
-  // ליגת העל הישראלית - עונת 2025
-  const LEAGUE_ID = 383; 
+  const COMPETITION = 'PD'; 
   const SEASON = 2025; 
 
   try {
-    const url = `https://v3.football.api-sports.io/fixtures?league=${LEAGUE_ID}&season=${SEASON}`;
+    const url = `https://api.football-data.org/v4/competitions/${COMPETITION}/matches?season=${SEASON}`;
     const response = await fetch(url, {
-      headers: { 
-        'x-apisports-key': API_KEY,
-        'x-apisports-host': 'v3.football.api-sports.io' 
-      }
+      headers: { 'X-Auth-Token': API_KEY }
     });
     
     const data = await response.json();
 
-    if (!data.response || data.response.length === 0) {
-      return res.status(200).json({ 
-        message: 'No matches found',
-        details: data.errors || 'API returned empty list'
-      });
+    if (data.errorCode) {
+      return res.status(403).json({ error: data.message, details: "Check if competition is available in free tier" });
+    }
+
+    if (!data.matches || data.matches.length === 0) {
+      return res.status(200).json({ message: 'No matches found', details: data });
     }
 
     let errorsCount = 0;
 
-    for (const item of data.response) {
-      const { fixture, teams, goals, league, score } = item;
-      
-      // התאמת השלבים לליגת העל (סדירה מול פלייאוף)
-      let internalStage = 'group'; 
-      const apiRound = league.round.toLowerCase();
-      
-      if (apiRound.includes('championship') || apiRound.includes('relegation')) {
-          internalStage = 'knockout'; 
-      }
+    for (const match of data.matches) {
+      const internalStage = 'group';
 
-      const homeScore = goals.home ?? score?.fulltime?.home ?? score?.extratime?.home ?? 0;
-      const awayScore = goals.away ?? score?.fulltime?.away ?? score?.extratime?.away ?? 0;
+      const homeScore = match.score?.fullTime?.home;
+      const awayScore = match.score?.fullTime?.away;
 
       const { error } = await supabase.from('matches').upsert({
-        api_id: fixture.id,
-        home_team_name: teams.home.name,
-        away_team_name: teams.away.name,
-        home_flag: teams.home.logo,
-        away_flag: teams.away.logo,
+        api_id: match.id,
+        home_team_name: match.homeTeam.shortName || match.homeTeam.name,
+        away_team_name: match.awayTeam.shortName || match.awayTeam.name,
+        home_flag: match.homeTeam.crest,
+        away_flag: match.awayTeam.crest,
         home_score: homeScore,
         away_score: awayScore,
-        home_penalty: score?.penalty?.home, 
-        away_penalty: score?.penalty?.away, 
-        status: fixture.status.short.toLowerCase(),
-        kickoff_time: fixture.date,
+        status: match.status.toLowerCase(),
+        kickoff_time: match.utcDate,
         stage: internalStage
       }, { onConflict: 'api_id' });
 
       if (error) errorsCount++;
     }
 
-    return res.status(200).json({ message: `Success! Processed ${data.response.length} matches.` });
+    return res.status(200).json({ message: `Success! Processed ${data.matches.length} matches from La Liga 25/26.` });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
