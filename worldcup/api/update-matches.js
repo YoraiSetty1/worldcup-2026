@@ -11,15 +11,16 @@ export default async function handler(req, res) {
   }
 
   const API_KEY = process.env.VITE_API_SPORTS_KEY;
-  const LEAGUE_ID = 1; 
-  const SEASON = 2022;
+  // ליגת העל הישראלית - עונת 2025
+  const LEAGUE_ID = 383; 
+  const SEASON = 2025; 
 
   try {
     const url = `https://v3.football.api-sports.io/fixtures?league=${LEAGUE_ID}&season=${SEASON}`;
     const response = await fetch(url, {
       headers: { 
         'x-apisports-key': API_KEY,
-        'x-apisports-host': 'v3.football.api-sports.io' // התיקון שמונע את החסימה
+        'x-apisports-host': 'v3.football.api-sports.io' 
       }
     });
     
@@ -37,10 +38,12 @@ export default async function handler(req, res) {
     for (const item of data.response) {
       const { fixture, teams, goals, league, score } = item;
       
-      let internalStage = 'group';
+      // התאמת השלבים לליגת העל (סדירה מול פלייאוף)
+      let internalStage = 'group'; 
       const apiRound = league.round.toLowerCase();
-      if (apiRound.includes('final') || apiRound.includes('round of') || apiRound.includes('quarter') || apiRound.includes('semi')) {
-        internalStage = 'knockout';
+      
+      if (apiRound.includes('championship') || apiRound.includes('relegation')) {
+          internalStage = 'knockout'; 
       }
 
       const homeScore = goals.home ?? score?.fulltime?.home ?? score?.extratime?.home ?? 0;
