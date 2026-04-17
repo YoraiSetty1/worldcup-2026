@@ -37,11 +37,22 @@ export default function Dashboard() {
 
   if (!user?.onboarding_complete) return <Onboarding onComplete={loadData} />;
 
-  const liveMatches = matches.filter(m => m.status === 'live');
-  const upcomingMatches = matches.filter(m => !m.is_test && m.status === 'upcoming' && m.kickoff_time)
-    .sort((a, b) => new Date(a.kickoff_time) - new Date(b.kickoff_time)).slice(0, 3);
-  const recentResults = matches.filter(m => m.status === 'finished' && m.home_score != null)
-    .sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at)).slice(0, 3);
+  const isFinished = (status) => status === 'finished' || status === 'ft' || status === 'FINISHED';
+  const now = new Date();
+
+  const liveMatches = matches.filter(m => m.status === 'live' || m.status === 'in_play');
+  
+  // התיקון הקריטי: סינון לפי תאריך עתידי במקום המילה 'upcoming'
+  const upcomingMatches = matches
+    .filter(m => !m.is_test && !isFinished(m.status) && new Date(m.kickoff_time) >= now)
+    .sort((a, b) => new Date(a.kickoff_time) - new Date(b.kickoff_time))
+    .slice(0, 3);
+    
+  const recentResults = matches
+    .filter(m => isFinished(m.status) && m.home_score != null)
+    .sort((a, b) => new Date(b.kickoff_time) - new Date(a.kickoff_time))
+    .slice(0, 3);
+
   const myRank = leaderboard.findIndex(l => l.email === user?.email) + 1;
   const myPoints = leaderboard.find(l => l.email === user?.email)?.total_points || 0;
 
