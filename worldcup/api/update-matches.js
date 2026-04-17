@@ -12,8 +12,8 @@ export default async function handler(req, res) {
 
   const API_KEY = process.env.VITE_API_SPORTS_KEY;
   // שים לב: שינינו ל-WC (World Cup) ושנה ל-2026!
-  const COMPETITION = 'WC'; 
-  const SEASON = 2026; 
+  const COMPETITION = 'PD'; 
+  const SEASON = 2025; 
 
   try {
     const url = `https://api.football-data.org/v4/competitions/${COMPETITION}/matches?season=${SEASON}`;
