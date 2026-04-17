@@ -50,21 +50,21 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-2xl mx-auto pb-24 px-4 pt-4">
-      <header className="mb-8 text-center">
+      <header className="mb-8">
         <h1 className="text-3xl font-black mb-1 italic">אהלן, {user?.nickname || 'אלוף'}! 👋</h1>
-        <p className="text-muted-foreground font-medium text-sm">מוכן לסבב המשחקים הבא?</p>
+        <p className="text-muted-foreground font-medium">מוכן לסבב המשחקים הבא?</p>
       </header>
 
       <div className="grid grid-cols-2 gap-4 mb-8">
-        <div className="bg-emerald-50 p-6 rounded-2xl border border-emerald-100 flex flex-col items-center justify-center relative overflow-hidden">
-          <div className="absolute top-2 right-3 text-emerald-500/40"><Target size={24} /></div>
-          <div className="text-4xl font-black text-emerald-600 leading-none mb-2">{myBets.length}</div>
-          <div className="text-[10px] font-bold text-emerald-600/70 uppercase tracking-widest">הימורים שהנחת</div>
+        <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20">
+          <div className="text-primary mb-1"><Target size={20} /></div>
+          <div className="text-2xl font-black">{myBets.length}</div>
+          <div className="text-xs font-bold text-muted-foreground">הימורים שהנחת</div>
         </div>
-        <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100 flex flex-col items-center justify-center relative overflow-hidden">
-          <div className="absolute top-2 right-3 text-amber-500/40"><Swords size={24} /></div>
-          <div className="text-4xl font-black text-amber-600 leading-none mb-2">#{leaderboard.findIndex(u => u.email === user?.email) + 1}</div>
-          <div className="text-[10px] font-bold text-amber-600/70 uppercase tracking-widest">הדירוג שלך</div>
+        <div className="bg-secondary/10 p-4 rounded-2xl border border-secondary/20">
+          <div className="text-secondary mb-1"><Swords size={20} /></div>
+          <div className="text-2xl font-black">#{leaderboard.findIndex(u => u.email === user?.email) + 1}</div>
+          <div className="text-xs font-bold text-muted-foreground">הדירוג שלך</div>
         </div>
       </div>
 
@@ -89,7 +89,7 @@ export default function Dashboard() {
 
       {recentResults.length > 0 && (
         <section className="mb-8">
-          <h2 className="font-bold text-lg mb-3 flex items-center gap-2 font-mono uppercase tracking-tighter">תוצאות אחרונות</h2>
+          <h2 className="font-bold text-lg mb-3 flex items-center gap-2 font-mono">תוצאות אחרונות</h2>
           <div className="space-y-3">{recentResults.map(m => <MatchCard key={m.id} match={m} compact />)}</div>
         </section>
       )}
@@ -97,26 +97,26 @@ export default function Dashboard() {
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-bold text-lg flex items-center gap-2"><Trophy size={18} />טבלת המובילים</h2>
-          <Link to="/leaderboard" className="text-sm text-primary font-medium flex items-center gap-1 text-emerald-600">הכל <ChevronLeft size={14} /></Link>
+          <Link to="/leaderboard" className="text-sm text-primary font-medium flex items-center gap-1">הכל <ChevronLeft size={14} /></Link>
         </div>
-        <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
           {leaderboard.slice(0, 5).map((entry, i) => {
             const isFirst = i === 0;
             const isLast = leaderboard.length > 1 && i === leaderboard.length - 1;
 
             return (
-              <div key={entry.email} className={`flex items-center justify-between px-4 py-3 ${i > 0 ? 'border-t border-border' : ''} ${entry.email === user?.email ? 'bg-emerald-50/50' : ''}`}>
+              <div key={entry.email} className={`flex items-center justify-between px-4 py-3 ${i > 0 ? 'border-t border-border' : ''} ${entry.email === user?.email ? 'bg-primary/5' : ''}`}>
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-xs font-bold text-emerald-700">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
                     {(entry.nickname || entry.full_name || '?')[0]}
                   </div>
-                  <span className="font-bold text-sm text-slate-700">
+                  <span className="font-medium text-sm">
+                    {isFirst && <span className="text-yellow-600">👑 </span>}
+                    {isLast && <span>🤡 </span>}
                     {entry.nickname || entry.full_name || entry.email}
-                    {isFirst && <span className="mr-1">👑</span>}
-                    {isLast && <span className="mr-1">🤡</span>}
                   </span>
                 </div>
-                <span className="font-black text-lg text-emerald-600">{entry.total_points}</span>
+                <span className="font-black text-sm text-primary">{entry.total_points}</span>
               </div>
             );
           })}
