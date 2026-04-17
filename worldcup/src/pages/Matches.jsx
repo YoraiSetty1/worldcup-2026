@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import moment from 'moment';
 import 'moment/locale/he';
-import { ChevronDown } from 'lucide-react';
-import { matchesApi, betsApi } from '../lib/supabase.js';
+import { ChevronDown, Calendar } from 'lucide-react';
+import { matchesApi, betsApi, cardsApi } from '../lib/supabase.js';
 import MatchCard from '../components/MatchCard';
 import { toast } from 'sonner';
 
@@ -13,25 +13,36 @@ export default function Matches() {
   const { user } = useOutletContext();
   const [matches, setMatches] = useState([]);
   const [bets, setBets] = useState({});
+  const [userCards, setUserCards] = useState([]); 
   const [pendingBets, setPendingBets] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showFinished, setShowFinished] = useState(false); // הסטייט החדש לתיקייה
+  const [showFinished, setShowFinished] = useState(false);
+  const [tab, setTab] = useState('group');
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { loadData(); }, [user?.email]);
 
   const loadData = async () => {
     setLoading(true);
-    const [matchList, betList] = await Promise.all([
-      matchesApi.list(),
-      user?.email ? betsApi.forUser(user.email) : [],
-    ]);
-    setMatches(matchList);
-    const betMap = {};
-    betList.forEach(b => { betMap[b.match_id] = b; });
-    setBets(betMap);
-    setPendingBets({});
-    setLoading(false);
+    try {
+      const [matchList, betList, cardList] = await Promise.all([
+        matchesApi.list(),
+        user?.email ? betsApi.forUser(user.email) : [],
+        user?.email ? cardsApi.forUser(user.email) : [],
+      ]);
+      
+      setMatches(matchList);
+      setUserCards(cardList);
+      
+      const betMap = {};
+      betList.forEach(b => { betMap[b.match_id] = b; });
+      setBets(betMap);
+      setPendingBets({});
+    } catch (err) {
+      toast.error('שגיאה בטעינת הנתונים');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBetChange = (matchId, betData) => {
@@ -39,79 +50,93 @@ export default function Matches() {
   };
 
   const saveBets = async () => {
+    if (!user?.email) return;
     setSaving(true);
-    for (const [matchId, betData] of Object.entries(pendingBets)) {
-      await betsApi.upsert(matchId, user.email, betData.home_score ?? 0, betData.away_score ?? 0);
+    try {
+      for (const [matchId, betData] of Object.entries(pendingBets)) {
+        await betsApi.upsert(matchId, user.email, betData);
+      }
+      toast.success('ההימורים נשמרו!');
+      await loadData();
+    } catch (err) {
+      toast.error('שגיאה בשמירה');
+    } finally {
+      setSaving(false);
     }
-    toast.success('הניחושים נשמרו! ⚽');
-    setSaving(false);
-    loadData();
   };
 
-  const isFinished = (m) => m.status === 'finished' || m.status === 'ft' || m.status === 'FINISHED';
-
-  const realMatches = matches.filter(m => !m.is_test);
-  const groupMatches = realMatches.filter(m => m.stage === 'group');
-  const koMatches = realMatches.filter(m => m.stage !== 'group');
-  const [tab, setTab] = useState('group');
-
-  // בוחרים את המשחקים לפי הטאב הפעיל
-  const activeMatches = tab === 'group' ? groupMatches : koMatches;
-
-  // מפצלים למשחקים קרובים מול משחקים שהסתיימו
-  const upcomingMatchesList = activeMatches.filter(m => !isFinished(m));
-  const finishedMatchesList = activeMatches.filter(m => isFinished(m));
-
-  // פונקציית עזר לסידור לפי ימים
-  const groupByDay = (list) => {
-    const sorted = [...list].sort((a, b) => new Date(a.kickoff_time) - new Date(b.kickoff_time));
-    const byDay = {};
-    sorted.forEach(m => {
-      const key = m.kickoff_time ? moment(m.kickoff_time).format('YYYY-MM-DD') : 'ללא תאריך';
-      if (!byDay[key]) byDay[key] = [];
-      byDay[key].push(m);
+  const groupMatchesByDay = (list) => {
+    const groups = {};
+    list.forEach(m => {
+      const day = m.kickoff_time ? moment(m.kickoff_time).format('YYYY-MM-DD') : 'ללא תאריך';
+      if (!groups[day]) groups[day] = [];
+      groups[day].push(m);
     });
-    return byDay;
+    return groups;
   };
 
-  const upcomingByDay = groupByDay(upcomingMatchesList);
-  const finishedByDay = groupByDay(finishedMatchesList);
-
-  // מרנדר את רשימת המשחקים
-  const renderMatchList = (matchesByDay) => {
-    return Object.entries(matchesByDay).map(([dayKey, dayMatches]) => (
+  const renderMatchList = (groupedMatches) => {
+    return Object.entries(groupedMatches).map(([dayKey, dayMatches]) => (
       <div key={dayKey}>
         <div className="sticky top-14 z-10 bg-background py-1">
-          <h3 className="font-bold text-sm text-muted-foreground bg-muted rounded-lg px-3 py-1.5 inline-block shadow-sm">
+          <h3 className="font-bold text-sm text-muted-foreground bg-muted rounded-lg px-3 py-1.5 inline-block">
             {dayKey === 'ללא תאריך' ? dayKey : moment(dayKey).format('dddd, D MMMM')}
           </h3>
         </div>
         <div className="space-y-3 mt-2">
-          {dayMatches.map(m => (
-            <MatchCard key={m.id} match={m}
-              bet={pendingBets[m.id] || bets[m.id]}
-              onBet={data => handleBetChange(m.id, data)} />
-          ))}
+          {dayMatches.map(m => {
+            const startTime = moment(m.kickoff_time);
+            const now = moment();
+            
+            const isScoreChangeActiveForThisMatch = userCards.some(c => 
+              c.card_type === 'score_change' && 
+              c.is_used && 
+              String(c.used_on_match_id) === String(m.id)
+            );
+
+            let isLocked = m.status?.toLowerCase() === 'finished' || m.status?.toLowerCase() === 'ft';
+            if (['1h', 'ht', '2h', 'live', 'live'].includes(m.status?.toLowerCase())) {
+              isLocked = isScoreChangeActiveForThisMatch ? now.diff(startTime, 'minutes') > 45 : true;
+            } else if (m.status?.toLowerCase() === 'upcoming' || !m.status) {
+               // לוגיקת נעילה רגילה שעתיים לפני המשחק
+               isLocked = moment(m.kickoff_time).diff(now, 'hours') < 2;
+            }
+
+            return (
+              <MatchCard 
+                key={m.id} 
+                match={m}
+                bet={pendingBets[m.id] || bets[m.id]}
+                onBet={data => handleBetChange(m.id, data)}
+                disabled={isLocked}
+              />
+            );
+          })}
         </div>
       </div>
     ));
   };
 
-  if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
+  if (loading) return <div className="p-8 text-center animate-pulse">טוען משחקים...</div>;
+
+  const filteredMatches = matches.filter(m => (tab === 'group' ? m.stage === 'group' : m.stage !== 'group'));
+  const upcoming = filteredMatches.filter(m => m.status !== 'finished' && m.status !== 'ft');
+  const finished = filteredMatches.filter(m => m.status === 'finished' || m.status === 'ft');
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black">משחקים</h1>
+    <div className="max-w-2xl mx-auto pb-24 px-4 pt-4">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-black flex items-center gap-2">
+          <Calendar className="text-primary" /> משחקים
+        </h1>
         {Object.keys(pendingBets).length > 0 && (
-          <button onClick={saveBets} disabled={saving}
-            className="bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-bold shadow-md hover:shadow-lg transition-all disabled:opacity-60">
-            {saving ? 'שומר...' : `שמור ניחושים (${Object.keys(pendingBets).length})`}
+          <button onClick={saveBets} disabled={saving} className="bg-primary text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform disabled:opacity-50">
+            {saving ? 'שומר...' : `שמור ${Object.keys(pendingBets).length} הימורים`}
           </button>
         )}
       </div>
 
-      <div className="flex rounded-lg border border-border overflow-hidden p-1 bg-muted/50" dir="rtl">
+      <div className="flex bg-muted p-1 rounded-lg mb-6">
         {[['group', 'שלב הבתים'], ['knockout', 'נוקאאוט']].map(([val, label]) => (
           <button key={val} onClick={() => { setTab(val); setShowFinished(false); }}
             className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${tab === val ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
@@ -120,31 +145,17 @@ export default function Matches() {
         ))}
       </div>
 
-      {/* אזור המשחקים הקרובים */}
       <div className="space-y-6">
-        {upcomingMatchesList.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8">אין משחקים קרובים בשלב זה</p>
-        ) : (
-          renderMatchList(upcomingByDay)
-        )}
+        {upcoming.length === 0 ? <p className="text-center text-muted-foreground py-8 font-medium italic">אין משחקים קרובים בשלב זה</p> : renderMatchList(groupMatchesByDay(upcoming))}
       </div>
 
-      {/* אזור המשחקים שהסתיימו (נפתח בלחיצה) */}
-      {finishedMatchesList.length > 0 && (
+      {finished.length > 0 && (
         <div className="mt-8">
-          <button
-            onClick={() => setShowFinished(!showFinished)}
-            className="w-full flex items-center justify-between bg-card border border-border p-4 rounded-xl font-bold text-muted-foreground hover:bg-muted transition-colors shadow-sm"
-          >
-            <span>משחקים שנגמרו ({finishedMatchesList.length})</span>
+          <button onClick={() => setShowFinished(!showFinished)} className="w-full flex items-center justify-between bg-card border border-border p-4 rounded-xl font-bold text-muted-foreground hover:bg-muted transition-colors shadow-sm">
+            <span>משחקים שנגמרו ({finished.length})</span>
             <ChevronDown className={`transition-transform duration-300 ${showFinished ? 'rotate-180' : ''}`} />
           </button>
-
-          {showFinished && (
-            <div className="space-y-6 mt-4 opacity-80 transition-opacity">
-              {renderMatchList(finishedByDay)}
-            </div>
-          )}
+          {showFinished && <div className="space-y-6 mt-4">{renderMatchList(groupMatchesByDay(finished))}</div>}
         </div>
       )}
     </div>
