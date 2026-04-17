@@ -42,7 +42,6 @@ export default function Dashboard() {
 
   const liveMatches = matches.filter(m => m.status === 'live' || m.status === 'in_play');
   
-  // התיקון הקריטי: סינון לפי תאריך עתידי במקום המילה 'upcoming'
   const upcomingMatches = matches
     .filter(m => !m.is_test && !isFinished(m.status) && new Date(m.kickoff_time) >= now)
     .sort((a, b) => new Date(a.kickoff_time) - new Date(b.kickoff_time))
@@ -112,20 +111,24 @@ export default function Dashboard() {
           <Link to="/leaderboard" className="text-sm text-primary font-medium flex items-center gap-1">הכל <ChevronLeft size={14} /></Link>
         </div>
         <div className="bg-card rounded-xl border border-border overflow-hidden">
-          {leaderboard.slice(0, 5).map((entry, i) => (
-            <div key={entry.email} className={`flex items-center justify-between px-4 py-3 ${i > 0 ? 'border-t border-border' : ''} ${entry.email === user?.email ? 'bg-primary/5' : ''}`}>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
-                  {(entry.nickname || entry.full_name || '?')[0]}
+          {leaderboard.slice(0, 5).map((entry, i) => {
+            const isLast = leaderboard.length > 1 && i === leaderboard.length - 1;
+            return (
+              <div key={entry.email} className={`flex items-center justify-between px-4 py-3 ${i > 0 ? 'border-t border-border' : ''} ${entry.email === user?.email ? 'bg-primary/5' : ''}`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
+                    {(entry.nickname || entry.full_name || '?')[0]}
+                  </div>
+                  <span className="font-medium text-sm">
+                    {i === 0 && <span className="text-yellow-600">👑 </span>}
+                    {isLast && <span>🤡 </span>}
+                    {entry.nickname || entry.full_name || entry.email}
+                  </span>
                 </div>
-                <span className="font-medium text-sm">
-                  {i === 0 && <span className="text-yellow-600">👑 </span>}
-                  {entry.nickname || entry.full_name || entry.email}
-                </span>
+                <span className="font-black text-lg text-primary">{entry.total_points}</span>
               </div>
-              <span className="font-black text-lg text-primary">{entry.total_points}</span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
     </div>
