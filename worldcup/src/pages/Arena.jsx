@@ -20,7 +20,13 @@ export function Arena() {
         cardsApi.all(),
         matchesApi.list(),
       ]);
-      const my = matchups.find(m => m.user1_email === user?.email || m.user2_email === user?.email);
+      
+      // התיקון: מוסיפים בדיקה שהסטטוס הוא active
+      const my = matchups.find(m => 
+        (m.user1_email === user?.email || m.user2_email === user?.email) && 
+        m.status === 'active'
+      );
+
       if (my) {
         setMatchup(my);
         const oppEmail = my.user1_email === user?.email ? my.user2_email : my.user1_email;
@@ -39,13 +45,24 @@ export function Arena() {
         allCards.filter(c => c.user_email === user?.email && c.is_used && c.card_type === 'shield')
           .forEach(c => { log.push({ text: `${myName} הפעיל מגן`, type: 'shield' }); });
         setActionLog(log);
+      } else {
+        // אם אין מאצ'אפ פעיל, מאפסים את הסטייט
+        setMatchup(null);
       }
       setLoading(false);
     })();
   }, [user?.email]);
 
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
-  if (!matchup) return <div className="text-center py-20 space-y-4"><Swords size={48} className="mx-auto text-muted-foreground" /><h2 className="text-xl font-bold">אין עימות יומי</h2><p className="text-muted-foreground">האדמין צריך להגריל עימותים יומיים</p></div>;
+  
+  // עכשיו אם הסטטוס finished, matchup יהיה null ויוצג המסך הזה:
+  if (!matchup) return (
+    <div className="text-center py-20 space-y-4">
+      <Swords size={48} className="mx-auto text-muted-foreground" />
+      <h2 className="text-xl font-bold">אין עימות פעיל</h2>
+      <p className="text-muted-foreground">העימות היומי הסתיים או שטרם הוגרל אחד חדש.</p>
+    </div>
+  );
 
   const isUser1 = matchup.user1_email === user?.email;
   const myPoints = isUser1 ? matchup.user1_points : matchup.user2_points;
@@ -82,9 +99,7 @@ export function Arena() {
           </div>
         </div>
         <div className="bg-muted/50 px-6 py-3 border-t border-border text-center">
-          {matchup.status === 'finished'
-            ? <span className="text-sm font-bold">{matchup.winner_email === user?.email ? '🏆 ניצחת! +2 נקודות בונוס' : matchup.winner_email ? '😤 הפסדת הפעם...' : '🤝 תיקו!'}</span>
-            : <span className="text-sm text-muted-foreground flex items-center justify-center gap-2"><TrendingUp size={14} />העימות פעיל – המנצח מקבל 2 נקודות בונוס!</span>}
+          <span className="text-sm text-muted-foreground flex items-center justify-center gap-2"><TrendingUp size={14} />העימות פעיל – המנצח מקבל 2 נקודות בונוס!</span>
         </div>
       </motion.div>
 
