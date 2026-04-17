@@ -10,7 +10,7 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  // בדיקה אם המשתמש כבר מחובר - מונע כניסה כפולה
+  // בדיקה אם המשתמש כבר מחובר - פותר את הצורך בלחיצה כפולה
   useEffect(() => {
     const checkUser = async () => {
       const { data: { session } } = await auth.getSession();
@@ -28,14 +28,15 @@ export default function Login() {
     setLoading(true);
     try {
       if (isSignUp) {
-        const { error } = await auth.signUp({ email, password });
+        const { error } = await auth.signUp(email, password);
         if (error) throw error;
         toast.success('נרשמת בהצלחה! כנס למייל לאישור.');
       } else {
-        const { error, data } = await auth.signInWithPassword({ email, password });
+        // חזרנו ל-signIn הרגיל שעובד אצלך
+        const { error, data } = await auth.signIn(email, password);
         if (error) throw error;
         
-        if (data?.user) {
+        if (data?.user || data?.session) {
           navigate('/', { replace: true });
         }
       }
@@ -56,6 +57,8 @@ export default function Login() {
         </div>
 
         <form onSubmit={handle} className="space-y-4 bg-card p-6 rounded-2xl border border-border shadow-sm">
+          <h2 className="font-bold text-lg">{isSignUp ? 'הרשמה' : 'כניסה'}</h2>
+          
           <div>
             <label className="text-sm font-medium block mb-1">אימייל</label>
             <input
