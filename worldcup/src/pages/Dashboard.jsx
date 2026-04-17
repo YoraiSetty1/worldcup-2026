@@ -49,32 +49,32 @@ export default function Dashboard() {
     .slice(0, 2);
 
   return (
-    <div className=\"max-w-2xl mx-auto pb-24 px-4 pt-4\">
-      <header className=\"mb-8\">
-        <h1 className=\"text-3xl font-black mb-1 italic\">אהלן, {user?.nickname || 'אלוף'}! 👋</h1>
-        <p className=\"text-muted-foreground font-medium\">מוכן לסבב המשחקים הבא?</p>
+    <div className="max-w-2xl mx-auto pb-24 px-4 pt-4">
+      <header className="mb-8">
+        <h1 className="text-3xl font-black mb-1 italic">אהלן, {user?.nickname || 'אלוף'}! 👋</h1>
+        <p className="text-muted-foreground font-medium">מוכן לסבב המשחקים הבא?</p>
       </header>
 
-      <div className=\"grid grid-cols-2 gap-4 mb-8\">
-        <div className=\"bg-primary/10 p-4 rounded-2xl border border-primary/20\">
-          <div className=\"text-primary mb-1\"><Target size={20} /></div>
-          <div className=\"text-2xl font-black\">{myBets.length}</div>
-          <div className=\"text-xs font-bold text-muted-foreground\">הימורים שהנחת</div>
+      <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20">
+          <div className="text-primary mb-1"><Target size={20} /></div>
+          <div className="text-2xl font-black">{myBets.length}</div>
+          <div className="text-xs font-bold text-muted-foreground">הימורים שהנחת</div>
         </div>
-        <div className=\"bg-secondary/10 p-4 rounded-2xl border border-secondary/20\">
-          <div className=\"text-secondary mb-1\"><Swords size={20} /></div>
-          <div className=\"text-2xl font-black\">#{leaderboard.findIndex(u => u.email === user?.email) + 1}</div>
-          <div className=\"text-xs font-bold text-muted-foreground\">הדירוג שלך</div>
+        <div className="bg-secondary/10 p-4 rounded-2xl border border-secondary/20">
+          <div className="text-secondary mb-1"><Swords size={20} /></div>
+          <div className="text-2xl font-black">#{leaderboard.findIndex(u => u.email === user?.email) + 1}</div>
+          <div className="text-xs font-bold text-muted-foreground">הדירוג שלך</div>
         </div>
       </div>
 
       {upcomingMatches.length > 0 && (
-        <section className=\"mb-8\">
-          <div className=\"flex items-center justify-between mb-3\">
-            <h2 className=\"font-bold text-lg flex items-center gap-2\"><Calendar size={18} /> משחקים קרובים</h2>
-            <Link to=\"/matches\" className=\"text-sm text-primary font-medium flex items-center gap-1\">לכל המשחקים <ChevronLeft size={14} /></Link>
+        <section className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-lg flex items-center gap-2"><Calendar size={18} /> משחקים קרובים</h2>
+            <Link to="/matches" className="text-sm text-primary font-medium flex items-center gap-1">לכל המשחקים <ChevronLeft size={14} /></Link>
           </div>
-          <div className=\"space-y-3\">
+          <div className="space-y-3">
             {upcomingMatches.map(m => (
               <MatchCard 
                 key={m.id} 
@@ -88,36 +88,35 @@ export default function Dashboard() {
       )}
 
       {recentResults.length > 0 && (
-        <section className=\"mb-8\">
-          <h2 className=\"font-bold text-lg mb-3 flex items-center gap-2 font-mono\">תוצאות אחרונות</h2>
-          <div className=\"space-y-3\">{recentResults.map(m => <MatchCard key={m.id} match={m} compact />)}</div>
+        <section className="mb-8">
+          <h2 className="font-bold text-lg mb-3 flex items-center gap-2 font-mono">תוצאות אחרונות</h2>
+          <div className="space-y-3">{recentResults.map(m => <MatchCard key={m.id} match={m} compact />)}</div>
         </section>
       )}
 
       <section>
-        <div className=\"flex items-center justify-between mb-3\">
-          <h2 className=\"font-bold text-lg flex items-center gap-2\"><Trophy size={18} />טבלת המובילים</h2>
-          <Link to=\"/leaderboard\" className=\"text-sm text-primary font-medium flex items-center gap-1\">הכל <ChevronLeft size={14} /></Link>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="font-bold text-lg flex items-center gap-2"><Trophy size={18} />טבלת המובילים</h2>
+          <Link to="/leaderboard" className="text-sm text-primary font-medium flex items-center gap-1">הכל <ChevronLeft size={14} /></Link>
         </div>
-        <div className=\"bg-card rounded-xl border border-border overflow-hidden\">
+        <div className="bg-card rounded-xl border border-border overflow-hidden">
           {leaderboard.slice(0, 5).map((entry, i) => {
             const isFirst = i === 0;
-            // בודקים אם זה המקום האחרון בטבלה הכללית
             const isLast = leaderboard.length > 1 && i === leaderboard.length - 1;
 
             return (
               <div key={entry.email} className={`flex items-center justify-between px-4 py-3 ${i > 0 ? 'border-t border-border' : ''} ${entry.email === user?.email ? 'bg-primary/5' : ''}`}>
-                <div className=\"flex items-center gap-3\">
-                  <div className=\"w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary\">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
                     {(entry.nickname || entry.full_name || '?')[0]}
                   </div>
-                  <span className=\"font-medium text-sm\">
-                    {isFirst && <span className=\"text-yellow-600\">👑 </span>}
+                  <span className="font-medium text-sm">
+                    {isFirst && <span className="text-yellow-600">👑 </span>}
                     {isLast && <span>🤡 </span>}
                     {entry.nickname || entry.full_name || entry.email}
                   </span>
                 </div>
-                <span className=\"font-black text-sm text-primary\">{entry.total_points}</span>
+                <span className="font-black text-sm text-primary">{entry.total_points}</span>
               </div>
             );
           })}
