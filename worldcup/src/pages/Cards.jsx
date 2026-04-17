@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Shield, Zap, RefreshCw, Star, Lock } from 'lucide-react';
-import { cardsApi, matchupsApi } from '../lib/supabase.js';
+import { Shield, Zap, RefreshCw, Star, Lock, X } from 'lucide-react';
+import { cardsApi, matchupsApi, matchesApi } from '../lib/supabase.js';
 import { toast } from 'sonner';
+import moment from 'moment';
 
 const CARD_META = {
   team_agnostic: { label: 'בלי קשר לקבוצה', desc: 'מובטחת נקודה אחת ללא תלות בתוצאה', Icon: Star, color: 'from-yellow-400 to-amber-500' },
@@ -15,9 +16,14 @@ const CARD_META = {
 export default function Cards() {
   const { user } = useOutletContext();
   const [cards, setCards] = useState([]);
+  const [todayMatches, setTodayMatches] = useState([]);
   const [opponentEmail, setOpponentEmail] = useState(null);
   const [attackedByOpponent, setAttackedByOpponent] = useState(false);
   const [loading, setLoading] = useState(true);
+  
+  // States לניהול בחירת משחק
+  const [selectedCard, setSelectedCard] = useState(null);
+  const [showMatchPicker, setShowMatchPicker] = useState(false);
 
   useEffect(() => {
     if (user?.email) loadAll();
@@ -26,12 +32,20 @@ export default function Cards() {
   const loadAll = async () => {
     setLoading(true);
     try {
-      const [userCards, dailyMatchup] = await Promise.all([
+      const [userCards, dailyMatchup, allMatches] = await Promise.all([
         cardsApi.forUser(user.email),
-        matchupsApi.getToday(user.email)
+        matchupsApi.getToday(user.email),
+        matchesApi.list()
       ]);
       
       setCards(userCards);
+
+      // סינון משחקים שקורים היום/בקרוב לבחירה
+      const filtered = allMatches.filter(m => 
+        m.status !== 'finished' && 
+        moment(m.kickoff_time).isSame(moment(), 'day')
+      );
+      setTodayMatches(filtered);
 
       if (dailyMatchup) {
         const opponent = dailyMatchup.user1_email === user.email ? dailyMatchup.user2_email : dailyMatchup.user1_email;
@@ -52,45 +66,38 @@ export default function Cards() {
     }
   };
 
-  const useCard = async (card) => {
+  const handleCardClick = (card) => {
     if (card.is_used) return;
 
-    // 1. בדיקת יריב עבור קלפים התקפיים
-    const isAttackCard = ['result_flip', 'block_exact'].includes(card.card_type);
-    if (isAttackCard && !opponentEmail) {
+    // בדיקות מקדימות
+    if (['result_flip', 'block_exact'].includes(card.card_type) && !opponentEmail) {
       toast.error('לא ניתן להשתמש בקלף התקפי כשאין יריב יומי פעיל');
       return;
     }
 
-    // 2. בדיקת מגן
     if (card.card_type === 'shield' && !attackedByOpponent) {
       toast.error('המגן פעיל רק כשהיריב תקף אותך');
       return;
     }
 
-    let matchId = null;
-    
-    // 3. בחירת משחק לכל הקלפים למעט מגן
-    if (card.card_type !== 'shield') {
-      const targetId = prompt(`הכנס את ה-ID של המשחק עליו תרצה להפעיל את הקלף "${CARD_META[card.card_type].label}":`);
-      if (!targetId) {
-        toast.error('חובה לבחור משחק כדי להפעיל קלף זה');
-        return;
-      }
-      matchId = targetId;
+    // אם זה מגן - מפעילים ישר. אם לא - פותחים בחירת משחק
+    if (card.card_type === 'shield') {
+      executeUseCard(card, null);
+    } else {
+      setSelectedCard(card);
+      setShowMatchPicker(true);
     }
+  };
 
-    // 4. אישור סופי
-    const confirmUse = window.confirm(`האם אתה בטוח שברצונך להפעיל את הקלף על משחק ${matchId || ''}?`);
-    if (!confirmUse) return;
-
+  const executeUseCard = async (card, matchId) => {
     try {
       await cardsApi.update(card.id, { 
         is_used: true, 
         used_against_email: opponentEmail,
         used_on_match_id: matchId 
       });
-      toast.success('הקלף הופעל בהצלחה! ⚡');
+      toast.success(`הקלף ${CARD_META[card.card_type].label} הופעל בהצלחה!`);
+      setShowMatchPicker(false);
       loadAll();
     } catch (err) {
       toast.error('שגיאה בהפעלת הקלף');
@@ -100,13 +107,13 @@ export default function Cards() {
   if (loading) return <div className="p-8 text-center animate-pulse">טוען קלפים...</div>;
 
   return (
-    <div className="max-w-2xl mx-auto p-4 pb-24">
+    <div className="max-w-2xl mx-auto p-4 pb-24 relative">
       <div className="mb-8 text-center sm:text-right">
         <h1 className="text-2xl font-black flex items-center justify-center sm:justify-start gap-2">
           <Zap className="text-primary" /> החבילה שלך
         </h1>
-        <p className="text-sm text-muted-foreground mt-1 italic">
-          כל קלף ניתן לשימוש פעם אחת · נוצלו: {cards.filter(c => c.is_used).length}/{cards.length}
+        <p className="text-sm text-muted-foreground mt-1">
+          נוצלו: {cards.filter(c => c.is_used).length}/{cards.length}
         </p>
       </div>
 
@@ -118,27 +125,55 @@ export default function Cards() {
           
           return (
             <div key={card.id}
-              className={`rounded-2xl p-4 text-white bg-gradient-to-br ${meta.color || 'from-gray-400 to-gray-600'} 
-              ${card.is_used ? 'opacity-50 grayscale-[0.5]' : 'hover:scale-[1.02] shadow-lg'} 
+              onClick={() => handleCardClick(card)}
+              className={`rounded-2xl p-4 text-white bg-gradient-to-br ${meta.color} cursor-pointer
+              ${card.is_used ? 'opacity-50 grayscale' : 'hover:scale-[1.02] shadow-lg'} 
               relative overflow-hidden transition-all duration-300`}>
               <Icon size={28} className="mb-2 opacity-90" />
               <div className="font-bold text-sm leading-tight">{meta.label}</div>
               <div className="text-[10px] opacity-80 mt-1 leading-tight h-8 line-clamp-2">{meta.desc}</div>
-              
-              {!card.is_used ? (
-                <button onClick={() => useCard(card)} disabled={isShieldDisabled}
-                  className="mt-3 w-full bg-white/20 hover:bg-white/30 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg py-1.5 text-xs font-bold transition-colors">
-                  {isShieldDisabled ? 'לא זמין' : 'השתמש'}
-                </button>
-              ) : (
-                <div className="mt-3 text-[10px] font-bold bg-black/20 rounded-lg py-1 text-center uppercase tracking-wider">
-                  בשימוש
-                </div>
-              )}
+              <div className="mt-3 w-full bg-white/20 rounded-lg py-1.5 text-xs font-bold text-center">
+                {card.is_used ? 'בשימוש' : isShieldDisabled ? 'לא זמין' : 'השתמש'}
+              </div>
             </div>
           );
         })}
       </div>
+
+      {/* מודאל בחירת משחק */}
+      {showMatchPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-card w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-border">
+            <div className="p-6 border-b border-border flex justify-between items-center">
+              <h2 className="font-black text-lg text-foreground">בחר משחק להפעלת הקלף</h2>
+              <button onClick={() => setShowMatchPicker(false)} className="text-muted-foreground hover:text-foreground">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3">
+              {todayMatches.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8 font-bold">אין משחקים זמינים היום לבחירה</p>
+              ) : (
+                todayMatches.map(m => (
+                  <div key={m.id} 
+                    onClick={() => executeUseCard(selectedCard, m.id)}
+                    className="flex items-center justify-between p-4 bg-muted/30 hover:bg-primary/10 border border-border hover:border-primary rounded-2xl cursor-pointer transition-all">
+                    <div className="flex items-center gap-3">
+                      <img src={m.home_flag} className="w-6 h-4 object-contain" alt="" />
+                      <span className="text-sm font-bold">{m.home_team_name}</span>
+                    </div>
+                    <span className="text-xs font-black text-muted-foreground">VS</span>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-bold">{m.away_team_name}</span>
+                      <img src={m.away_flag} className="w-6 h-4 object-contain" alt="" />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
