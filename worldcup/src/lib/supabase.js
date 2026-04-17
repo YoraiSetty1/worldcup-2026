@@ -114,6 +114,16 @@ export const cardsApi = {
 
 // ─── DAILY MATCHUPS ────────────────────────────────────────
 export const matchupsApi = {
+  async getToday(email) {
+    const today = new Date().toISOString().split('T')[0];
+    const { data } = await supabase
+      .from('daily_matchups')
+      .select('*')
+      .or(`user1_email.eq.${email},user2_email.eq.${email}`)
+      .eq('date', today)
+      .maybeSingle(); 
+    return data;
+  },
   async forDate(date) {
     const { data } = await supabase.from('daily_matchups').select('*').eq('date', date);
     return data || [];
