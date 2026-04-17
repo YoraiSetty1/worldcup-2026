@@ -6,9 +6,9 @@ import { toast } from 'sonner';
 
 const CARD_META = {
   team_agnostic: { label: 'בלי קשר לקבוצה', desc: 'מובטחת נקודה אחת ללא תלות בתוצאה', Icon: Star, color: 'from-yellow-400 to-amber-500' },
-  result_flip: { label: 'היפוך תוצאה', desc: 'הופך את ניחוש היריב', Icon: RefreshCw, color: 'from-red-400 to-rose-600' },
+  result_flip: { label: 'היפוך תוצאה', desc: 'הופך את ניחוש היריב במשחק ספציפי', Icon: RefreshCw, color: 'from-red-400 to-rose-600' },
   score_change: { label: 'שינוי תוצאה', desc: 'שנה ניחוש אחרי נעילה (עד דקה 45)', Icon: Zap, color: 'from-blue-400 to-indigo-600' },
-  block_exact: { label: 'חסימת מדויק', desc: 'מבטל ניחוש מדויק של היריב', Icon: Lock, color: 'from-purple-400 to-violet-600' },
+  block_exact: { label: 'חסימת מדויק', desc: 'מבטל ניחוש מדויק של היריב במשחק ספציפי', Icon: Lock, color: 'from-purple-400 to-violet-600' },
   shield: { label: 'מגן', desc: 'מגן בפני מתקפה של היריב', Icon: Shield, color: 'from-green-400 to-emerald-600' },
 };
 
@@ -38,7 +38,11 @@ export default function Cards() {
         setOpponentEmail(opponent);
         
         const opponentCards = await cardsApi.forUser(opponent);
-        const isAttacked = opponentCards.some(c => c.is_used && c.used_against_email === user.email && (c.card_type === 'result_flip' || c.card_type === 'block_exact'));
+        const isAttacked = opponentCards.some(c => 
+          c.is_used && 
+          c.used_against_email === user.email && 
+          (c.card_type === 'result_flip' || c.card_type === 'block_exact')
+        );
         setAttackedByOpponent(isAttacked);
       }
     } catch (err) {
@@ -50,18 +54,35 @@ export default function Cards() {
 
   const useCard = async (card) => {
     if (card.is_used) return;
-    
+
+    // 1. בדיקת יריב עבור קלפים התקפיים
+    const isAttackCard = ['result_flip', 'block_exact'].includes(card.card_type);
+    if (isAttackCard && !opponentEmail) {
+      toast.error('לא ניתן להשתמש בקלף התקפי כשאין יריב יומי פעיל');
+      return;
+    }
+
+    // 2. בדיקת מגן
     if (card.card_type === 'shield' && !attackedByOpponent) {
       toast.error('המגן פעיל רק כשהיריב תקף אותך');
       return;
     }
 
     let matchId = null;
-    if (card.card_type === 'team_agnostic' || card.card_type === 'score_change') {
-      const targetId = prompt('הכנס את ה-ID של המשחק עליו תרצה להפעיל את הקלף:');
-      if (!targetId) return;
+    
+    // 3. בחירת משחק לכל הקלפים למעט מגן
+    if (card.card_type !== 'shield') {
+      const targetId = prompt(`הכנס את ה-ID של המשחק עליו תרצה להפעיל את הקלף "${CARD_META[card.card_type].label}":`);
+      if (!targetId) {
+        toast.error('חובה לבחור משחק כדי להפעיל קלף זה');
+        return;
+      }
       matchId = targetId;
     }
+
+    // 4. אישור סופי
+    const confirmUse = window.confirm(`האם אתה בטוח שברצונך להפעיל את הקלף על משחק ${matchId || ''}?`);
+    if (!confirmUse) return;
 
     try {
       await cardsApi.update(card.id, { 
@@ -84,7 +105,7 @@ export default function Cards() {
         <h1 className="text-2xl font-black flex items-center justify-center sm:justify-start gap-2">
           <Zap className="text-primary" /> החבילה שלך
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-muted-foreground mt-1 italic">
           כל קלף ניתן לשימוש פעם אחת · נוצלו: {cards.filter(c => c.is_used).length}/{cards.length}
         </p>
       </div>
@@ -93,21 +114,26 @@ export default function Cards() {
         {cards.map(card => {
           const meta = CARD_META[card.card_type] || {};
           const Icon = meta.Icon || Shield;
-          const disabled = card.card_type === 'shield' && !attackedByOpponent;
+          const isShieldDisabled = card.card_type === 'shield' && !attackedByOpponent;
           
           return (
             <div key={card.id}
-              className={`rounded-2xl p-4 text-white bg-gradient-to-br ${meta.color || 'from-gray-400 to-gray-600'} ${card.is_used ? 'opacity-50' : ''} relative overflow-hidden shadow-lg transition-transform hover:scale-[1.02]`}>
+              className={`rounded-2xl p-4 text-white bg-gradient-to-br ${meta.color || 'from-gray-400 to-gray-600'} 
+              ${card.is_used ? 'opacity-50 grayscale-[0.5]' : 'hover:scale-[1.02] shadow-lg'} 
+              relative overflow-hidden transition-all duration-300`}>
               <Icon size={28} className="mb-2 opacity-90" />
               <div className="font-bold text-sm leading-tight">{meta.label}</div>
               <div className="text-[10px] opacity-80 mt-1 leading-tight h-8 line-clamp-2">{meta.desc}</div>
+              
               {!card.is_used ? (
-                <button onClick={() => useCard(card)} disabled={disabled}
-                  className="mt-3 w-full bg-white/20 hover:bg-white/30 disabled:opacity-50 rounded-lg py-1.5 text-xs font-bold transition-colors">
-                  {disabled ? 'לא זמין' : 'השתמש'}
+                <button onClick={() => useCard(card)} disabled={isShieldDisabled}
+                  className="mt-3 w-full bg-white/20 hover:bg-white/30 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg py-1.5 text-xs font-bold transition-colors">
+                  {isShieldDisabled ? 'לא זמין' : 'השתמש'}
                 </button>
               ) : (
-                <div className="mt-3 text-[10px] font-bold bg-black/20 rounded-lg py-1 text-center uppercase tracking-wider">בשימוש</div>
+                <div className="mt-3 text-[10px] font-bold bg-black/20 rounded-lg py-1 text-center uppercase tracking-wider">
+                  בשימוש
+                </div>
               )}
             </div>
           );
