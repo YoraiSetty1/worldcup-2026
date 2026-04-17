@@ -1,12 +1,13 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { Trophy, Calendar, Swords, CreditCard, MessageCircle, User, Shield, Menu, X } from 'lucide-react';
+import { Trophy, Calendar, Swords, CreditCard, MessageCircle, User, Shield, Menu, X, Table } from 'lucide-react';
 import { auth } from '../lib/supabase.js';
 import { useAuth } from '../lib/AuthContext';
 
 const NAV_ITEMS = [
   { to: '/', icon: Trophy, label: 'בית' },
   { to: '/matches', icon: Calendar, label: 'משחקים' },
+  { to: '/world-cup-table', icon: Table, label: 'טבלת המונדיאל' },
   { to: '/leaderboard', icon: Trophy, label: 'דירוג' },
   { to: '/arena', icon: Swords, label: 'זירה' },
   { to: '/cards', icon: CreditCard, label: 'קלפים' },

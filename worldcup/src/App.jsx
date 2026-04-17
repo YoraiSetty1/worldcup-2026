@@ -11,6 +11,7 @@ import Profile from './pages/Profile';
 import AdminPanel from './pages/admin/AdminPanel';
 import Login from './pages/Login';
 import { AuthProvider } from './lib/AuthContext';
+import WorldCupTable from './components/WorldCupTable';
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
             <Route path="chat" element={<Chat />} />
             <Route path="profile" element={<Profile />} />
             <Route path="admin" element={<AdminPanel />} />
+	        <Route path="world-cup-table" element={<WorldCupTable />} />
           </Route>
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
