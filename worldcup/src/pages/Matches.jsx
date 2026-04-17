@@ -54,7 +54,6 @@ export default function Matches() {
     setSaving(true);
     try {
       for (const [matchId, betData] of Object.entries(pendingBets)) {
-        // כאן בוצע התיקון: פירוק האובייקט למספרים נפרדים
         await betsApi.upsert(matchId, user.email, betData.home_score, betData.away_score);
       }
       toast.success('ההימורים נשמרו!');
@@ -99,7 +98,6 @@ export default function Matches() {
             if (['1h', 'ht', '2h', 'live', 'live'].includes(m.status?.toLowerCase())) {
               isLocked = isScoreChangeActiveForThisMatch ? now.diff(startTime, 'minutes') > 45 : true;
             } else if (m.status?.toLowerCase() === 'upcoming' || !m.status) {
-               // לוגיקת נעילה רגילה שעתיים לפני המשחק
                isLocked = moment(m.kickoff_time).diff(now, 'hours') < 2;
             }
 
@@ -120,4 +118,45 @@ export default function Matches() {
 
   if (loading) return <div className="p-8 text-center animate-pulse">טוען משחקים...</div>;
 
-  const filteredMatches = matches.filter(
+  const filteredMatches = matches.filter(m => (tab === 'group' ? m.stage === 'group' : m.stage !== 'group'));
+  const upcoming = filteredMatches.filter(m => m.status !== 'finished' && m.status !== 'ft');
+  const finished = filteredMatches.filter(m => m.status === 'finished' || m.status === 'ft');
+
+  return (
+    <div className="max-w-2xl mx-auto pb-24 px-4 pt-4">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-black flex items-center gap-2">
+          <Calendar className="text-primary" /> משחקים
+        </h1>
+        {Object.keys(pendingBets).length > 0 && (
+          <button onClick={saveBets} disabled={saving} className="bg-primary text-white px-6 py-2 rounded-xl font-bold shadow-lg shadow-primary/20 hover:scale-105 transition-transform disabled:opacity-50">
+            {saving ? 'שומר...' : `שמור ${Object.keys(pendingBets).length} הימורים`}
+          </button>
+        )}
+      </div>
+
+      <div className="flex bg-muted p-1 rounded-lg mb-6">
+        {[['group', 'שלב הבתים'], ['knockout', 'נוקאאוט']].map(([val, label]) => (
+          <button key={val} onClick={() => { setTab(val); setShowFinished(false); }}
+            className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${tab === val ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-6">
+        {upcoming.length === 0 ? <p className="text-center text-muted-foreground py-8 font-medium italic">אין משחקים קרובים בשלב זה</p> : renderMatchList(groupMatchesByDay(upcoming))}
+      </div>
+
+      {finished.length > 0 && (
+        <div className="mt-8">
+          <button onClick={() => setShowFinished(!showFinished)} className="w-full flex items-center justify-between bg-card border border-border p-4 rounded-xl font-bold text-muted-foreground hover:bg-muted transition-colors shadow-sm">
+            <span>משחקים שנגמרו ({finished.length})</span>
+            <ChevronDown className={`transition-transform duration-300 ${showFinished ? 'rotate-180' : ''}`} />
+          </button>
+          {showFinished && <div className="space-y-6 mt-4">{renderMatchList(groupMatchesByDay(finished))}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
