@@ -65,14 +65,25 @@ export function Leaderboard() {
               <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
                 {(entry.nickname || entry.full_name || '?')[0]}
               </div>
-              <div>
-                <span className="font-semibold text-sm block">
-                  {i === 0 && <span className="text-yellow-500">👑 שליט הטורניר · </span>}
+              <div className="flex flex-col">
+                <span className="font-semibold text-sm">
                   {entry.nickname || entry.full_name || entry.email}
                 </span>
-                {i === leaderboard.length - 1 && leaderboard.length > 1
-                  ? <span className="text-xs font-bold text-red-500">🤡 ליצן החצר</span>
-                  : entry.favorite_team && <span className="text-xs text-muted-foreground">אוהד: {entry.favorite_team}</span>}
+                
+                {/* תואר מקום ראשון */}
+                {i === 0 && (
+                  <span className="text-xs font-bold text-yellow-500 mt-0.5">👑 שליט הטורניר</span>
+                )}
+                
+                {/* תואר מקום אחרון */}
+                {i === leaderboard.length - 1 && leaderboard.length > 1 && (
+                  <span className="text-xs font-bold text-red-500 mt-0.5">🤡 ליצן החצר</span>
+                )}
+
+                {/* קבוצה אהובה - מופיע תמיד למי שהגדיר */}
+                {entry.favorite_team && (
+                  <span className="text-xs text-muted-foreground mt-0.5">אוהד: {entry.favorite_team}</span>
+                )}
               </div>
             </div>
             <span className="font-black text-xl text-primary">{entry.total_points}</span>
