@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, CheckCircle } from 'lucide-react';
+import { Shield, CheckCircle, Trash2 } from 'lucide-react'; // הוספנו את Trash2
 import { matchesApi, betsApi, profilesApi, matchupsApi } from '../../lib/supabase.js';
 import { toast } from 'sonner';
 import moment from 'moment';
@@ -20,6 +20,19 @@ function MatchManager() {
     setLoading(true);
     setMatches(await matchesApi.list());
     setLoading(false);
+  };
+
+  // --- פונקציית המחיקה החדשה ---
+  const handleDeleteMatch = async (id) => {
+    if (!window.confirm('האם אתה בטוח שברצונך למחוק את המשחק? פעולה זו תמחק גם את כל ההימורים המשויכים אליו.')) return;
+    
+    try {
+      await matchesApi.delete(id);
+      toast.success('המשחק נמחק בהצלחה');
+      load(); // רענון הרשימה
+    } catch (err) {
+      toast.error('שגיאה במחיקת המשחק');
+    }
   };
 
   const saveKickoff = async (matchId) => {
@@ -80,9 +93,18 @@ function MatchManager() {
           <div key={match.id} className="bg-card rounded-xl border border-border p-4 space-y-3">
             <div className="flex items-center justify-between">
               <span className="font-medium text-sm">{match.home_flag} {match.home_team_name} vs {match.away_team_name} {match.away_flag}</span>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${match.status === 'live' ? 'bg-red-100 text-red-700' : match.status === 'finished' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                {match.status === 'live' ? 'חי' : match.status === 'finished' ? 'הסתיים' : 'ממתין'}
-              </span>
+              <div className="flex items-center gap-2">
+                {/* כפתור המחיקה */}
+                <button 
+                  onClick={() => handleDeleteMatch(match.id)}
+                  className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                >
+                  <Trash2 size={18} />
+                </button>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${match.status === 'live' ? 'bg-red-100 text-red-700' : match.status === 'finished' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                  {match.status === 'live' ? 'חי' : match.status === 'finished' ? 'הסתיים' : 'ממתין'}
+                </span>
+              </div>
             </div>
 
             {match.status !== 'finished' && (
@@ -250,7 +272,7 @@ export default function AdminPanel() {
   const tabs = [['matches', 'משחקים'], ['add', 'הוספה'], ['matchups', 'עימותים']];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" dir="rtl">
       <h1 className="text-2xl font-black flex items-center gap-2"><Shield className="text-primary" size={24} />פאנל ניהול</h1>
       <div className="flex rounded-lg border border-border overflow-hidden">
         {tabs.map(([val, label]) => (
@@ -261,7 +283,7 @@ export default function AdminPanel() {
         ))}
       </div>
       {tab === 'matches' && <MatchManager key={refreshKey} />}
-      {tab === 'add' && <AddMatchForm onAdded={() => setRefreshKey(k => k + 1)} />}
+      {tab === 'add' && <AddMatchForm onAdded={() => { setTab('matches'); setRefreshKey(k => k + 1); }} />}
       {tab === 'matchups' && <MatchupManager />}
     </div>
   );
