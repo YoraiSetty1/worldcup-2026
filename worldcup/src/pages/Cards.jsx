@@ -1,119 +1,111 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { Shield, Zap, RefreshCw, Star, Lock, X } from 'lucide-react';
-import { cardsApi, matchupsApi, matchesApi } from '../lib/supabase.js';
+import { Shield, Zap, RefreshCw, Star, Lock } from 'lucide-react';
+import { cardsApi, matchupsApi, supabase } from '../lib/supabase.js';
 import { toast } from 'sonner';
-import moment from 'moment';
 
 const CARD_META = {
   team_agnostic: { label: 'בלי קשר לקבוצה', desc: 'מובטחת נקודה אחת ללא תלות בתוצאה', Icon: Star, color: 'from-yellow-400 to-amber-500' },
-  result_flip: { label: 'היפוך תוצאה', desc: 'הופך את ניחוש היריב במשחק ספציפי', Icon: RefreshCw, color: 'from-red-400 to-rose-600' },
-  score_change: { label: 'שינוי תוצאה', desc: 'שנה ניחוש אחרי נעילה (עד דקה 45)', Icon: Zap, color: 'from-blue-400 to-indigo-600' },
-  block_exact: { label: 'חסימת מדויק', desc: 'מבטל ניחוש מדויק של היריב במשחק ספציפי', Icon: Lock, color: 'from-purple-400 to-violet-600' },
-  shield: { label: 'מגן', desc: 'מגן בפני מתקפה של היריב', Icon: Shield, color: 'from-green-400 to-emerald-600' },
+  result_flip:   { label: 'היפוך תוצאה',     desc: 'הופך את ניחוש היריב',              Icon: RefreshCw, color: 'from-red-400 to-rose-600' },
+  score_change:  { label: 'שינוי תוצאה',      desc: 'שנה ניחוש אחרי נעילה',            Icon: Zap,       color: 'from-blue-400 to-indigo-600' },
+  block_exact:   { label: 'חסימת מדויק',      desc: 'מבטל ניחוש מדויק של היריב',       Icon: Lock,      color: 'from-purple-400 to-violet-600' },
+  shield:        { label: 'מגן',               desc: 'מגן בפני מתקפה של היריב',          Icon: Shield,    color: 'from-green-400 to-emerald-600' },
 };
+
+const ATTACK_CARDS = ['result_flip', 'block_exact'];
+
+async function sendAttackPush(attackerNickname, cardLabel, opponentEmail) {
+  try {
+    await supabase.functions.invoke('send-push', {
+      body: {
+        type: 'card_attack',
+        data: { attacker: attackerNickname, card_name: cardLabel },
+        exclude_email: null, // שולח רק ליריב
+        target_email: opponentEmail,
+      },
+    });
+  } catch (e) {
+    console.warn('Push failed:', e.message);
+  }
+}
 
 export default function Cards() {
   const { user } = useOutletContext();
   const [cards, setCards] = useState([]);
-  const [todayMatches, setTodayMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [opponentEmail, setOpponentEmail] = useState(null);
   const [attackedByOpponent, setAttackedByOpponent] = useState(false);
-  const [loading, setLoading] = useState(true);
-  
-  // States לניהול בחירת משחק
-  const [selectedCard, setSelectedCard] = useState(null);
-  const [showMatchPicker, setShowMatchPicker] = useState(false);
 
-  useEffect(() => {
-    if (user?.email) loadAll();
-  }, [user?.email]);
+  useEffect(() => { loadAll(); }, [user?.email]);
 
   const loadAll = async () => {
+    if (!user?.email) return;
     setLoading(true);
-    try {
-      const [userCards, dailyMatchup, allMatches] = await Promise.all([
-        cardsApi.forUser(user.email),
-        matchupsApi.getToday(user.email),
-        matchesApi.list()
-      ]);
-      
-      setCards(userCards);
+    const [myCards, allCards, matchups] = await Promise.all([
+      cardsApi.forUser(user.email),
+      cardsApi.all(),
+      matchupsApi.forDate(new Date().toISOString().split('T')[0]),
+    ]);
 
-      // סינון משחקים שקורים היום/בקרוב לבחירה
-      const filtered = allMatches.filter(m => 
-        m.status !== 'finished' && 
-        moment(m.kickoff_time).isSame(moment(), 'day')
+    const seen = new Set();
+    setCards(myCards.filter(c => {
+      if (seen.has(c.card_type)) return false;
+      seen.add(c.card_type);
+      return true;
+    }));
+
+    const myMatchup = matchups.find(m => m.user1_email === user.email || m.user2_email === user.email);
+    if (myMatchup) {
+      const opp = myMatchup.user1_email === user.email ? myMatchup.user2_email : myMatchup.user1_email;
+      setOpponentEmail(opp);
+      const attacked = allCards.some(c =>
+        c.user_email === opp && c.is_used &&
+        c.used_against_email === user.email &&
+        ATTACK_CARDS.includes(c.card_type)
       );
-      setTodayMatches(filtered);
-
-      if (dailyMatchup) {
-        const opponent = dailyMatchup.user1_email === user.email ? dailyMatchup.user2_email : dailyMatchup.user1_email;
-        setOpponentEmail(opponent);
-        
-        const opponentCards = await cardsApi.forUser(opponent);
-        const isAttacked = opponentCards.some(c => 
-          c.is_used && 
-          c.used_against_email === user.email && 
-          (c.card_type === 'result_flip' || c.card_type === 'block_exact')
-        );
-        setAttackedByOpponent(isAttacked);
-      }
-    } catch (err) {
-      toast.error('שגיאה בטעינת הנתונים');
-    } finally {
-      setLoading(false);
+      setAttackedByOpponent(attacked);
     }
+    setLoading(false);
   };
 
-  const handleCardClick = (card) => {
+  const useCard = async (card) => {
     if (card.is_used) return;
-
-    // בדיקות מקדימות
-    if (['result_flip', 'block_exact'].includes(card.card_type) && !opponentEmail) {
-      toast.error('לא ניתן להשתמש בקלף התקפי כשאין יריב יומי פעיל');
-      return;
-    }
-
     if (card.card_type === 'shield' && !attackedByOpponent) {
       toast.error('המגן פעיל רק כשהיריב תקף אותך');
       return;
     }
 
-    // אם זה מגן - מפעילים ישר. אם לא - פותחים בחירת משחק
-    if (card.card_type === 'shield') {
-      executeUseCard(card, null);
-    } else {
-      setSelectedCard(card);
-      setShowMatchPicker(true);
+    await cardsApi.update(card.id, {
+      is_used: true,
+      used_against_email: opponentEmail,
+    });
+
+    toast.success('הקלף הופעל! ⚡');
+
+    // שלח פוש ליריב אם זה קלף התקפי
+    if (ATTACK_CARDS.includes(card.card_type) && opponentEmail) {
+      const myName = user.nickname || user.full_name || user.email;
+      const cardLabel = CARD_META[card.card_type]?.label || card.card_type;
+      await sendAttackPush(myName, cardLabel, opponentEmail);
     }
+
+    loadAll();
   };
 
-  const executeUseCard = async (card, matchId) => {
-    try {
-      await cardsApi.update(card.id, { 
-        is_used: true, 
-        used_against_email: opponentEmail,
-        used_on_match_id: matchId 
-      });
-      toast.success(`הקלף ${CARD_META[card.card_type].label} הופעל בהצלחה!`);
-      setShowMatchPicker(false);
-      loadAll();
-    } catch (err) {
-      toast.error('שגיאה בהפעלת הקלף');
-    }
-  };
-
-  if (loading) return <div className="p-8 text-center animate-pulse">טוען קלפים...</div>;
+  if (loading) return (
+    <div className="flex justify-center py-20">
+      <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
 
   return (
-    <div className="max-w-2xl mx-auto p-4 pb-24 relative">
-      <div className="mb-8 text-center sm:text-right">
-        <h1 className="text-2xl font-black flex items-center justify-center sm:justify-start gap-2">
-          <Zap className="text-primary" /> החבילה שלך
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-black flex items-center gap-2">
+          <Shield className="text-primary" size={24} />הקלפים שלי
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          נוצלו: {cards.filter(c => c.is_used).length}/{cards.length}
+          כל קלף ניתן לשימוש פעם אחת · נוצלו: {cards.filter(c => c.is_used).length}/{cards.length}
         </p>
       </div>
 
@@ -121,59 +113,27 @@ export default function Cards() {
         {cards.map(card => {
           const meta = CARD_META[card.card_type] || {};
           const Icon = meta.Icon || Shield;
-          const isShieldDisabled = card.card_type === 'shield' && !attackedByOpponent;
-          
+          const disabled = card.card_type === 'shield' && !attackedByOpponent;
+
           return (
             <div key={card.id}
-              onClick={() => handleCardClick(card)}
-              className={`rounded-2xl p-4 text-white bg-gradient-to-br ${meta.color} cursor-pointer
-              ${card.is_used ? 'opacity-50 grayscale' : 'hover:scale-[1.02] shadow-lg'} 
-              relative overflow-hidden transition-all duration-300`}>
+              className={`rounded-2xl p-4 text-white bg-gradient-to-br ${meta.color || 'from-gray-400 to-gray-600'} ${card.is_used ? 'opacity-50' : ''}`}>
               <Icon size={28} className="mb-2 opacity-90" />
-              <div className="font-bold text-sm leading-tight">{meta.label}</div>
-              <div className="text-[10px] opacity-80 mt-1 leading-tight h-8 line-clamp-2">{meta.desc}</div>
-              <div className="mt-3 w-full bg-white/20 rounded-lg py-1.5 text-xs font-bold text-center">
-                {card.is_used ? 'בשימוש' : isShieldDisabled ? 'לא זמין' : 'השתמש'}
-              </div>
+              <div className="font-bold text-sm">{meta.label}</div>
+              <div className="text-xs opacity-80 mt-1">{meta.desc}</div>
+              {!card.is_used ? (
+                <button onClick={() => useCard(card)} disabled={disabled}
+                  className="mt-3 w-full bg-white/20 hover:bg-white/30 disabled:opacity-50 rounded-lg py-1.5 text-xs font-bold transition-colors touch-manipulation">
+                  {disabled ? 'לא זמין' : 'השתמש'}
+                </button>
+              ) : (
+                <div className="mt-3 text-center text-xs opacity-70 font-bold">✓ שומש</div>
+              )}
             </div>
           );
         })}
       </div>
-
-      {/* מודאל בחירת משחק */}
-      {showMatchPicker && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-          <div className="bg-card w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-border">
-            <div className="p-6 border-b border-border flex justify-between items-center">
-              <h2 className="font-black text-lg text-foreground">בחר משחק להפעלת הקלף</h2>
-              <button onClick={() => setShowMatchPicker(false)} className="text-muted-foreground hover:text-foreground">
-                <X size={24} />
-              </button>
-            </div>
-            <div className="p-4 max-h-[60vh] overflow-y-auto space-y-3">
-              {todayMatches.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8 font-bold">אין משחקים זמינים היום לבחירה</p>
-              ) : (
-                todayMatches.map(m => (
-                  <div key={m.id} 
-                    onClick={() => executeUseCard(selectedCard, m.id)}
-                    className="flex items-center justify-between p-4 bg-muted/30 hover:bg-primary/10 border border-border hover:border-primary rounded-2xl cursor-pointer transition-all">
-                    <div className="flex items-center gap-3">
-                      <img src={m.home_flag} className="w-6 h-4 object-contain" alt="" />
-                      <span className="text-sm font-bold">{m.home_team_name}</span>
-                    </div>
-                    <span className="text-xs font-black text-muted-foreground">VS</span>
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-bold">{m.away_team_name}</span>
-                      <img src={m.away_flag} className="w-6 h-4 object-contain" alt="" />
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      {cards.length === 0 && <p className="text-center text-muted-foreground py-10">אין קלפים עדיין</p>}
     </div>
   );
 }

@@ -1,8 +1,9 @@
 import { Outlet, useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
 import { useAuth } from '../lib/AuthContext';
-import { profilesApi } from '../lib/supabase.js'; // הנה התיקון! שינינו ל-lib והוספנו .js
+import { profilesApi } from '../lib/supabase.js';
 import TopNav from './TopNav';
+import { PushSetupBanner } from '../hooks/usePushNotifications';
 
 export default function Layout() {
   const { user, setUser, loading } = useAuth();
@@ -37,6 +38,8 @@ export default function Layout() {
       <main className="max-w-5xl mx-auto px-4 py-6 pb-24">
         <Outlet context={{ user, setUser }} />
       </main>
+      {/* באנר בקשת הרשאת Push */}
+      <PushSetupBanner user={user} />
     </div>
   );
 }

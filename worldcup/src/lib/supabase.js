@@ -121,6 +121,7 @@ export const matchupsApi = {
       .select('*')
       .or(`user1_email.eq.${email},user2_email.eq.${email}`)
       .eq('date', today)
+      .eq('status', 'active') // תיקון: מציג רק עימותים פעילים בזירה
       .maybeSingle(); 
     return data;
   },
@@ -170,9 +171,14 @@ export const groupsApi = {
 };
 
 // ─── PUSH SUBSCRIPTIONS ────────────────────────────────────
+// תיקון: הוספת ה-API לשמירת המנויים להתראות
 export const pushApi = {
   async save(userEmail, subscription) {
-    return supabase.from('push_subscriptions').upsert({ user_email: userEmail, subscription }, { onConflict: 'user_email' });
+    const { data, error } = await supabase
+      .from('push_subscriptions')
+      .upsert({ user_email: userEmail, subscription }, { onConflict: 'user_email' });
+    if (error) console.error('Error saving push sub:', error);
+    return data;
   },
   async getAll() {
     const { data } = await supabase.from('push_subscriptions').select('*');
