@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import moment from 'moment';
 import 'moment/locale/he';
-import { ChevronDown, Calendar } from 'lucide-react';
-import { matchesApi, betsApi, cardsApi } from '../lib/supabase.js';
+import { ChevronDown, Calendar, Users, X } from 'lucide-react';
+import { motion } from 'framer-motion';
+// הוספתי פה את supabase ליבוא!
+import { supabase, matchesApi, betsApi, cardsApi } from '../lib/supabase.js';
 import MatchCard from '../components/MatchCard';
 import { toast } from 'sonner';
 
@@ -19,6 +21,11 @@ export default function Matches() {
   const [saving, setSaving] = useState(false);
   const [showFinished, setShowFinished] = useState(false);
   const [tab, setTab] = useState('group');
+
+  // סטייט עבור מודל החברים
+  const [friendsModalMatch, setFriendsModalMatch] = useState(null);
+  const [friendsBetsList, setFriendsBetsList] = useState([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
 
   useEffect(() => { loadData(); }, [user?.email]);
 
@@ -65,6 +72,29 @@ export default function Matches() {
     }
   };
 
+  // הפונקציה ששולפת את ההימורים של כולם
+  const openFriendsBets = async (match) => {
+    setFriendsModalMatch(match);
+    setLoadingFriends(true);
+    try {
+      // שליפת כל ההימורים למשחק הזה
+      const { data: allBets } = await supabase.from('bets').select('*').eq('match_id', match.id);
+      // שליפת כל הפרופילים כדי להציג שמות ותמונות
+      const { data: allProfiles } = await supabase.from('profiles').select('*');
+
+      const enrichedBets = (allBets || []).map(b => {
+        const profile = (allProfiles || []).find(p => p.email === b.user_email) || {};
+        return { ...b, profile };
+      });
+
+      setFriendsBetsList(enrichedBets);
+    } catch (err) {
+      toast.error('שגיאה בטעינת נתוני חברים');
+    } finally {
+      setLoadingFriends(false);
+    }
+  };
+
   const groupMatchesByDay = (list) => {
     const groups = {};
     list.forEach(m => {
@@ -88,7 +118,6 @@ export default function Matches() {
             const startTime = moment(m.kickoff_time);
             const now = moment();
             
-            // בדיקה האם יש למשתמש קלף "שינוי תוצאה" פעיל על המשחק הזה
             const isScoreChangeActiveForThisMatch = userCards.some(c => 
               c.card_type === 'score_change' && 
               c.is_used && 
@@ -99,13 +128,10 @@ export default function Matches() {
             const status = m.status?.toLowerCase() || 'upcoming';
 
             if (['finished', 'ft', 'aet', 'pen'].includes(status)) {
-              // משחק הסתיים - תמיד נעול
               isLocked = true;
             } else if (['1h', 'ht', '2h', 'et', 'p', 'live'].includes(status) || (startTime.diff(now, 'minutes') <= 0)) {
-              // משחק בלייב - נעול. אלא אם כן יש לו קלף, ואז פתוח עד הדקה ה-45.
               isLocked = isScoreChangeActiveForThisMatch ? now.diff(startTime, 'minutes') > 45 : true;
             } else {
-              // משחק טרם התחיל - ננעל שעתיים (120 דקות) לפני השריקה
               isLocked = startTime.diff(now, 'minutes') <= 120;
             }
 
@@ -116,6 +142,7 @@ export default function Matches() {
                 bet={pendingBets[m.id] || bets[m.id]}
                 onBet={data => handleBetChange(m.id, data)}
                 disabled={isLocked}
+                onViewFriends={openFriendsBets}
               />
             );
           })}
@@ -131,7 +158,7 @@ export default function Matches() {
   const finished = filteredMatches.filter(m => ['finished', 'ft', 'aet', 'pen'].includes(m.status?.toLowerCase()));
 
   return (
-    <div className="max-w-2xl mx-auto pb-24 px-4 pt-4">
+    <div className="max-w-2xl mx-auto pb-24 px-4 pt-4 relative">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-black flex items-center gap-2">
           <Calendar className="text-primary" /> משחקים
@@ -163,6 +190,72 @@ export default function Matches() {
             <ChevronDown className={`transition-transform duration-300 ${showFinished ? 'rotate-180' : ''}`} />
           </button>
           {showFinished && <div className="space-y-6 mt-4">{renderMatchList(groupMatchesByDay(finished))}</div>}
+        </div>
+      )}
+
+      {/* מודל הימורי חברים */}
+      {friendsModalMatch && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-card w-full max-w-md rounded-2xl shadow-2xl border border-border overflow-hidden">
+            <div className="p-4 bg-muted/50 border-b border-border flex justify-between items-center">
+              <h3 className="font-black text-lg flex items-center gap-2">
+                <Users className="text-primary" size={20} />
+                הימורי חברים
+              </h3>
+              <button onClick={() => setFriendsModalMatch(null)} className="p-1.5 hover:bg-muted-foreground/20 rounded-xl transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-4 bg-background max-h-[60vh] overflow-y-auto">
+              <div className="flex items-center justify-center gap-3 mb-6 bg-muted/30 p-3 rounded-xl border border-border/50">
+                <span className="font-bold">{friendsModalMatch.home_team_name}</span>
+                <span className="text-xs bg-muted px-2 py-1 rounded font-black">{friendsModalMatch.home_score ?? '-'} : {friendsModalMatch.away_score ?? '-'}</span>
+                <span className="font-bold">{friendsModalMatch.away_team_name}</span>
+              </div>
+
+              {loadingFriends ? (
+                <div className="flex justify-center py-8">
+                  <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : friendsBetsList.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="font-bold">אף אחד עדיין לא הימר על המשחק הזה 🤷‍♂️</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {friendsBetsList.map((b, idx) => {
+                    const isMe = b.user_email === user?.email;
+                    return (
+                      <div key={idx} className={`flex items-center justify-between p-3 rounded-xl border ${isMe ? 'border-primary bg-primary/5' : 'border-border bg-card'}`}>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center font-black text-primary overflow-hidden">
+                            {b.profile?.avatar_url ? (
+                              <img src={b.profile.avatar_url} className="w-full h-full object-cover" alt="" />
+                            ) : (
+                              (b.profile?.nickname || b.user_email)[0].toUpperCase()
+                            )}
+                          </div>
+                          <span className="font-bold">
+                            {b.profile?.nickname || b.profile?.full_name || b.user_email.split('@')[0]}
+                            {isMe && <span className="ml-1 text-[10px] text-primary">(אתה)</span>}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-xl font-black tracking-widest">{b.home_score}-{b.away_score}</span>
+                          {b.points_earned !== null && b.points_earned !== undefined && (
+                            <span className={`text-xs font-black px-2 py-1 rounded-lg ${b.points_earned > 0 ? 'bg-green-500/10 text-green-600' : 'bg-muted text-muted-foreground'}`}>
+                              +{b.points_earned} נק'
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </motion.div>
         </div>
       )}
     </div>

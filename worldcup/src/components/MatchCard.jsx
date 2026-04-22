@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Clock, Lock, CheckCircle } from 'lucide-react';
+import { Clock, Lock, CheckCircle, Users } from 'lucide-react';
 import moment from 'moment';
 
 function isMatchLive(match) {
@@ -9,20 +9,17 @@ function isMatchLive(match) {
   const finishedStatuses = ['ft', 'aet', 'pen', 'finished'];
   if (finishedStatuses.includes(match.status?.toLowerCase())) return false;
 
-  // התיקון הגדול של הלייב: אם לא חזר סטטוס, מחשבים לפי הזמן בפועל
   if (match.kickoff_time) {
     const minutesSinceStart = moment().diff(moment(match.kickoff_time), 'minutes');
-    // אם עברו מעל 0 דקות ועד 120 דקות (שעתיים), המשחק נחשב חי ומהבהב!
     if (minutesSinceStart >= 0 && minutesSinceStart <= 120) return true;
   }
   return false;
 }
 
-export default function MatchCard({ match, bet, onBet, compact = false, flipped = false, disabled }) {
+export default function MatchCard({ match, bet, onBet, compact = false, flipped = false, disabled, onViewFriends }) {
   const computedLive = isMatchLive(match);
   const isFinished = ['ft', 'aet', 'pen', 'finished'].includes(match.status?.toLowerCase());
   
-  // תיקון סגירת ההימורים: ננעל אך ורק אם המשחק הסתיים לחלוטין
   const isLocked = disabled !== undefined ? disabled : isFinished;
 
   const stageLabels = {
@@ -79,13 +76,23 @@ export default function MatchCard({ match, bet, onBet, compact = false, flipped 
 
           <div className="flex flex-col items-center">
             {isLocked ? (
-              <div className="flex flex-col items-center gap-1">
-                <div className="text-3xl font-black italic tracking-tighter">
-                  {match.home_score ?? 0} : {match.away_score ?? 0}
+              <div className="flex flex-col items-center gap-3">
+                <div className="flex flex-col items-center gap-1">
+                  <div className="text-3xl font-black italic tracking-tighter">
+                    {match.home_score ?? 0} : {match.away_score ?? 0}
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                    <Lock size={10} /> הימורים סגורים
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                  <Lock size={10} /> הימורים סגורים
-                </div>
+                
+                {/* כפתור הימורי חברים */}
+                <button
+                  onClick={() => onViewFriends && onViewFriends(match)}
+                  className="flex items-center gap-1.5 text-[11px] font-black tracking-wide text-primary bg-primary/10 hover:bg-primary/20 px-4 py-2 rounded-full transition-all active:scale-95"
+                >
+                  <Users size={14} /> מה החברים שמו?
+                </button>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-3">
