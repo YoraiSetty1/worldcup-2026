@@ -88,17 +88,25 @@ export default function Matches() {
             const startTime = moment(m.kickoff_time);
             const now = moment();
             
+            // בדיקה האם יש למשתמש קלף "שינוי תוצאה" פעיל על המשחק הזה
             const isScoreChangeActiveForThisMatch = userCards.some(c => 
               c.card_type === 'score_change' && 
               c.is_used && 
               String(c.used_on_match_id) === String(m.id)
             );
 
-            let isLocked = m.status?.toLowerCase() === 'finished' || m.status?.toLowerCase() === 'ft';
-            if (['1h', 'ht', '2h', 'live', 'live'].includes(m.status?.toLowerCase())) {
+            let isLocked = false;
+            const status = m.status?.toLowerCase() || 'upcoming';
+
+            if (['finished', 'ft', 'aet', 'pen'].includes(status)) {
+              // משחק הסתיים - תמיד נעול
+              isLocked = true;
+            } else if (['1h', 'ht', '2h', 'et', 'p', 'live'].includes(status) || (startTime.diff(now, 'minutes') <= 0)) {
+              // משחק בלייב - נעול. אלא אם כן יש לו קלף, ואז פתוח עד הדקה ה-45.
               isLocked = isScoreChangeActiveForThisMatch ? now.diff(startTime, 'minutes') > 45 : true;
-            } else if (m.status?.toLowerCase() === 'upcoming' || !m.status) {
-               isLocked = moment(m.kickoff_time).diff(now, 'hours') < 2;
+            } else {
+              // משחק טרם התחיל - ננעל שעתיים (120 דקות) לפני השריקה
+              isLocked = startTime.diff(now, 'minutes') <= 120;
             }
 
             return (
@@ -119,8 +127,8 @@ export default function Matches() {
   if (loading) return <div className="p-8 text-center animate-pulse">טוען משחקים...</div>;
 
   const filteredMatches = matches.filter(m => (tab === 'group' ? m.stage === 'group' : m.stage !== 'group'));
-  const upcoming = filteredMatches.filter(m => m.status !== 'finished' && m.status !== 'ft');
-  const finished = filteredMatches.filter(m => m.status === 'finished' || m.status === 'ft');
+  const upcoming = filteredMatches.filter(m => !['finished', 'ft', 'aet', 'pen'].includes(m.status?.toLowerCase()));
+  const finished = filteredMatches.filter(m => ['finished', 'ft', 'aet', 'pen'].includes(m.status?.toLowerCase()));
 
   return (
     <div className="max-w-2xl mx-auto pb-24 px-4 pt-4">

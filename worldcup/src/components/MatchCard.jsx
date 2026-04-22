@@ -3,15 +3,17 @@ import { Clock, Lock, CheckCircle } from 'lucide-react';
 import moment from 'moment';
 
 function isMatchLive(match) {
-  const liveStatuses = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE', 'live'];
+  const liveStatuses = ['1h', 'ht', '2h', 'et', 'bt', 'p', 'live'];
   if (liveStatuses.includes(match.status?.toLowerCase())) return true;
 
-  const finishedStatuses = ['FT', 'AET', 'PEN', 'FINISHED', 'finished'];
+  const finishedStatuses = ['ft', 'aet', 'pen', 'finished'];
   if (finishedStatuses.includes(match.status?.toLowerCase())) return false;
 
+  // התיקון הגדול של הלייב: אם לא חזר סטטוס, מחשבים לפי הזמן בפועל
   if (match.kickoff_time) {
-    const hoursSinceStart = moment().diff(moment(match.kickoff_time), 'hours');
-    if (hoursSinceStart > 3) return false;
+    const minutesSinceStart = moment().diff(moment(match.kickoff_time), 'minutes');
+    // אם עברו מעל 0 דקות ועד 120 דקות (שעתיים), המשחק נחשב חי ומהבהב!
+    if (minutesSinceStart >= 0 && minutesSinceStart <= 120) return true;
   }
   return false;
 }
@@ -20,8 +22,8 @@ export default function MatchCard({ match, bet, onBet, compact = false, flipped 
   const computedLive = isMatchLive(match);
   const isFinished = ['ft', 'aet', 'pen', 'finished'].includes(match.status?.toLowerCase());
   
-  // שימוש ב-disabled שמועבר מבחוץ, אחרת שימוש בלוגיקה הרגילה
-  const isLocked = disabled !== undefined ? disabled : (isFinished || (match.kickoff_time && moment(match.kickoff_time).diff(moment(), 'hours') < 2));
+  // תיקון סגירת ההימורים: ננעל אך ורק אם המשחק הסתיים לחלוטין
+  const isLocked = disabled !== undefined ? disabled : isFinished;
 
   const stageLabels = {
     group: `בית ${match.group_letter || ''}`,
@@ -51,10 +53,10 @@ export default function MatchCard({ match, bet, onBet, compact = false, flipped 
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-      className={`bg-card rounded-2xl border ${computedLive ? 'border-red-500/30' : 'border-border'} overflow-hidden shadow-sm relative`}>
+      className={`bg-card rounded-2xl border ${computedLive ? 'border-red-500 shadow-red-500/20 shadow-lg' : 'border-border'} overflow-hidden relative transition-all duration-500`}>
       {computedLive && (
-        <div className="absolute top-0 right-0 left-0 h-1 bg-red-500 overflow-hidden">
-          <motion.div className="h-full bg-red-200" animate={{ x: ['-100%', '100%'] }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} />
+        <div className="absolute top-0 right-0 left-0 h-1.5 bg-red-500 overflow-hidden">
+          <motion.div className="h-full bg-red-300" animate={{ x: ['-100%', '100%'] }} transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }} />
         </div>
       )}
       
@@ -64,7 +66,7 @@ export default function MatchCard({ match, bet, onBet, compact = false, flipped 
             {stageLabels[match.stage] || match.stage}
           </span>
           <div className={`flex items-center gap-1.5 text-xs font-black ${statusColor}`}>
-            {computedLive && <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
+            {computedLive && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
             {statusLabel}
           </div>
         </div>
@@ -91,13 +93,13 @@ export default function MatchCard({ match, bet, onBet, compact = false, flipped 
                   <input type="number" min="0" max="20"
                     value={bet?.home_score ?? ''}
                     onChange={e => onBet({ ...bet, home_score: parseInt(e.target.value) || 0 })}
-                    className="w-12 h-12 text-center text-xl font-black rounded-xl border-2 border-muted bg-background focus:border-primary focus:outline-none transition-all"
+                    className={`w-12 h-12 text-center text-xl font-black rounded-xl border-2 bg-background focus:outline-none transition-all ${computedLive ? 'border-red-200 focus:border-red-500' : 'border-muted focus:border-primary'}`}
                     placeholder="0" />
                   <span className="text-xl font-black text-muted-foreground">:</span>
                   <input type="number" min="0" max="20"
                     value={bet?.away_score ?? ''}
                     onChange={e => onBet({ ...bet, away_score: parseInt(e.target.value) || 0 })}
-                    className="w-12 h-12 text-center text-xl font-black rounded-xl border-2 border-muted bg-background focus:border-primary focus:outline-none transition-all"
+                    className={`w-12 h-12 text-center text-xl font-black rounded-xl border-2 bg-background focus:outline-none transition-all ${computedLive ? 'border-red-200 focus:border-red-500' : 'border-muted focus:border-primary'}`}
                     placeholder="0" />
                 </div>
               </div>
