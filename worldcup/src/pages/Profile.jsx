@@ -2,11 +2,11 @@
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { User, Camera, Loader2 } from 'lucide-react';
-import { profilesApi, auth, supabase } from '../lib/supabase.js';
+import { supabase, auth } from '../lib/supabase.js';
 import { toast } from 'sonner';
 import { useAuth } from '../lib/AuthContext';
 
-// רשימת 48 הנבחרות והשחקנים (מעודכן לפי ההגרלה המלאה)
+// רשימת 48 הנבחרות והשחקנים המלאה לפי הבתים שלך
 export const PLAYERS_BY_TEAM = {
   // בית A
   'מקסיקו': ['סנטיאגו חימנס', 'הירבינג לוסאנו', 'הנרי מרטין', 'חוליאן קיניונס'],
@@ -81,7 +81,6 @@ export const PLAYERS_BY_TEAM = {
   'פנמה': ['חוסה פחארדו', 'אסמאעל דיאס', 'ססיליו ווטרמן']
 };
 
-// יצירה אוטומטית של רשימת הנבחרות מתוך האובייקט (ממוין אלפביתית)
 export const TEAMS = Object.keys(PLAYERS_BY_TEAM).sort();
 
 export function Profile() {
@@ -112,12 +111,10 @@ export function Profile() {
       if (uploadError) throw uploadError;
 
       const { data } = supabase.storage.from('avatars').getPublicUrl(fileName);
-      
       setForm(f => ({ ...f, avatar_url: data.publicUrl }));
-      toast.success('התמונה הועלתה! אל תשכח ללחוץ שמור למטה.');
+      toast.success('התמונה הועלתה! לחץ שמור לעדכון סופי.');
     } catch (error) {
       toast.error('שגיאה בהעלאת התמונה');
-      console.error(error);
     } finally {
       setUploading(false);
     }
@@ -127,9 +124,18 @@ export function Profile() {
     e.preventDefault();
     setSaving(true);
     try {
-      await profilesApi.upsert({ ...user, ...form });
-      const updated = await auth.me();
-      setUser(updated);
+      const { error } = await supabase.from('profiles').upsert({
+        email: user?.email,
+        nickname: form.nickname,
+        favorite_team: form.favorite_team,
+        predicted_winner: form.predicted_winner,
+        predicted_top_scorer: form.predicted_top_scorer,
+        avatar_url: form.avatar_url
+      });
+
+      if (error) throw error;
+
+      setUser(prev => ({ ...prev, ...form }));
       toast.success('הפרופיל עודכן בהצלחה!');
     } catch (err) {
       toast.error('שגיאה בשמירת הפרופיל');
@@ -139,7 +145,7 @@ export function Profile() {
   };
 
   return (
-    <div className="space-y-6 max-w-sm mx-auto pb-12">
+    <div className="space-y-6 max-w-sm mx-auto pb-12 px-4 pt-6">
       <h1 className="text-2xl font-black flex items-center gap-2"><User size={24} className="text-primary" />הפרופיל שלי</h1>
       
       <div className="relative w-24 h-24 mx-auto">
@@ -149,7 +155,7 @@ export function Profile() {
           ) : form.avatar_url ? (
             <img src={form.avatar_url} alt="Profile" className="w-full h-full object-cover" />
           ) : (
-            (form.nickname || user?.full_name || user?.email || '?')[0].toUpperCase()
+            (form.nickname || user?.email || '?')[0].toUpperCase()
           )}
         </div>
         <label className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full cursor-pointer shadow-lg hover:scale-110 transition-transform">
@@ -160,14 +166,14 @@ export function Profile() {
 
       <form onSubmit={save} className="space-y-5 bg-card border border-border rounded-2xl p-5 shadow-sm">
         <div>
-          <label className="text-sm font-medium block mb-1">כינוי</label>
+          <label className="text-sm font-medium block mb-1 font-bold">כינוי</label>
           <input value={form.nickname} onChange={e => setForm(f => ({ ...f, nickname: e.target.value }))}
             className="w-full border border-input rounded-lg px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
             placeholder="הכינוי שלך" required />
         </div>
 
         <div>
-          <label className="text-sm font-medium block mb-1">נבחרת אהובה</label>
+          <label className="text-sm font-medium block mb-1 font-bold">נבחרת אהובה</label>
           <select value={form.favorite_team} onChange={e => setForm(f => ({ ...f, favorite_team: e.target.value }))}
             className="w-full border border-input rounded-lg px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary">
             <option value="">-- בחר נבחרת --</option>
@@ -176,14 +182,14 @@ export function Profile() {
         </div>
 
         <div className="pt-4 border-t border-dashed border-border">
-          <h3 className="text-sm font-black text-primary mb-3">הימורי בונוס (10 נק׳ כל אחד)</h3>
+          <h3 className="text-sm font-black text-primary mb-3 uppercase tracking-wider">הימורי בונוס (10 נק׳ כל אחד)</h3>
           
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium block mb-1">הנבחרת שתזכה במונדיאל</label>
               <select value={form.predicted_winner} onChange={e => setForm(f => ({ ...f, predicted_winner: e.target.value }))}
                 className="w-full border border-input rounded-lg px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary">
-                <option value="">-- בחר מנצחת --</option>
+                <option value="">-- מי תניף את הגביע? --</option>
                 {TEAMS.map(team => <option key={team} value={team}>{team}</option>)}
               </select>
             </div>
@@ -203,14 +209,14 @@ export function Profile() {
           </div>
         </div>
 
-        <div className="pt-4">
-          <label className="text-sm font-medium block mb-1 text-muted-foreground">אימייל (לא ניתן לשינוי)</label>
-          <input value={user?.email || ''} disabled className="w-full border border-input rounded-lg px-3 py-2.5 text-sm bg-muted text-muted-foreground cursor-not-allowed" />
+        <div className="pt-4 border-t border-border">
+          <label className="text-[10px] font-bold text-muted-foreground block mb-1">אימייל (מזהה ייחודי)</label>
+          <input value={user?.email || ''} disabled className="w-full border border-input rounded-lg px-3 py-2 text-xs bg-muted text-muted-foreground opacity-70" />
         </div>
 
         <button type="submit" disabled={saving || uploading}
-          className="w-full bg-primary text-primary-foreground rounded-lg py-3 font-black text-sm disabled:opacity-60 hover:scale-[1.02] transition-transform shadow-md shadow-primary/20">
-          {saving ? 'שומר נתונים...' : 'שמור שינויים'}
+          className="w-full bg-primary text-white rounded-lg py-3 font-black text-sm disabled:opacity-60 hover:shadow-lg transition-all active:scale-[0.98]">
+          {saving ? 'מעדכן פרופיל...' : 'שמור שינויים'}
         </button>
       </form>
     </div>
