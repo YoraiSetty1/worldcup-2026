@@ -3,15 +3,16 @@ import { Clock, Lock, CheckCircle, Users, RefreshCw, ShieldAlert } from 'lucide-
 import moment from 'moment';
 
 function isMatchLive(match) {
-  const liveStatuses = ['1h', 'ht', '2h', 'et', 'bt', 'p', 'live'];
-  if (liveStatuses.includes(match.status?.toLowerCase())) return true;
-
   const finishedStatuses = ['ft', 'aet', 'pen', 'finished'];
   if (finishedStatuses.includes(match.status?.toLowerCase())) return false;
 
+  const liveStatuses = ['1h', 'ht', '2h', 'et', 'bt', 'p', 'live', 'in_play'];
+  if (liveStatuses.includes(match.status?.toLowerCase())) return true;
+
   if (match.kickoff_time) {
     const minutesSinceStart = moment().diff(moment(match.kickoff_time), 'minutes');
-    if (minutesSinceStart >= 0 && minutesSinceStart <= 120) return true;
+    // אם הגיעה שעת הפתיחה ועוד לא התקבל סטטוס סיום - הוא לייב!
+    if (minutesSinceStart >= 0) return true;
   }
   return false;
 }

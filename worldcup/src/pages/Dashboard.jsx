@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Trophy, Target, Swords, Calendar, ChevronLeft } from 'lucide-react';
-// הוספתי פה את supabase ליבוא
+import { Trophy, Target, Swords, Calendar, ChevronLeft, Clock } from 'lucide-react';
 import { matchesApi, profilesApi, betsApi, supabase } from '../lib/supabase.js';
 import MatchCard from '../components/MatchCard';
 import Onboarding from './Onboarding';
+import moment from 'moment';
 
 export default function Dashboard() {
   const { user, setUser } = useOutletContext();
@@ -13,8 +13,13 @@ export default function Dashboard() {
   const [leaderboard, setLeaderboard] = useState([]);
   const [myBets, setMyBets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [currentTime, setCurrentTime] = useState(moment().format('HH:mm:ss'));
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => { 
+    loadData(); 
+    const timer = setInterval(() => setCurrentTime(moment().format('HH:mm:ss')), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const loadData = async () => {
     setLoading(true);
@@ -30,13 +35,7 @@ export default function Dashboard() {
     setMyBets(myBetList);
     
     const pointsMap = {};
-    
-    // חישוב נקודות רגילות מניחושים
-    allBets.forEach(b => { 
-      pointsMap[b.user_email] = (pointsMap[b.user_email] || 0) + (b.points_earned || 0); 
-    });
-    
-    // התיקון שלך: חישוב נקודות בונוס מהזירה
+    allBets.forEach(b => { pointsMap[b.user_email] = (pointsMap[b.user_email] || 0) + (b.points_earned || 0); });
     if (allMatchups) {
       allMatchups.forEach(m => {
         if (m.winner_email && m.winner_email !== 'tie') {
@@ -56,10 +55,10 @@ export default function Dashboard() {
 
   if (!user?.onboarding_complete && !user?.nickname) return <Onboarding onComplete={loadData} />;
 
-  const isFinished = (status) => status === 'finished' || status === 'ft' || status === 'FINISHED';
+  const isFinished = (status) => status === 'finished' || status === 'ft' || status === 'FINISHED' || status === 'aet' || status === 'pen';
   const now = new Date();
 
-  const liveMatches = matches.filter(m => m.status === 'live' || m.status === 'in_play');
+  const liveMatches = matches.filter(m => !isFinished(m.status) && m.status !== 'upcoming' && (m.status === 'live' || m.status === 'in_play' || m.status === '1h' || m.status === 'ht' || m.status === '2h'));
   
   const upcomingMatches = matches
     .filter(m => !m.is_test && !isFinished(m.status) && new Date(m.kickoff_time) >= now)
@@ -79,9 +78,13 @@ export default function Dashboard() {
   return (
     <div className="space-y-6 pb-20">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-l from-primary/90 to-emerald-600/90 rounded-2xl p-6 text-white shadow-lg">
+        className="bg-gradient-to-l from-primary/90 to-emerald-600/90 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
         
-        <div className="flex items-center gap-4 mb-4">
+        <div className="absolute top-4 left-4 bg-black/20 px-3 py-1.5 rounded-full flex items-center gap-1.5 font-mono text-sm shadow-inner border border-white/10">
+          <Clock size={14} className="text-white/70" /> <span className="tracking-wider font-bold">{currentTime}</span>
+        </div>
+
+        <div className="flex items-center gap-4 mb-4 mt-6">
           <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-2xl font-black overflow-hidden border-2 border-white/40 shrink-0 shadow-inner">
             {user?.avatar_url ? (
               <img src={user.avatar_url} alt="Profile" className="w-full h-full object-cover" />
