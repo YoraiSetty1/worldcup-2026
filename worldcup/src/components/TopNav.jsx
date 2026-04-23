@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { Trophy, Calendar, Swords, CreditCard, MessageCircle, User, Shield, Menu, X, Table } from 'lucide-react';
+import { Trophy, Calendar, Swords, CreditCard, MessageCircle, User, Shield, Menu, X, Table, BookOpen } from 'lucide-react';
 import { auth } from '../lib/supabase.js';
 import { useAuth } from '../lib/AuthContext';
 
@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { to: '/arena', icon: Swords, label: 'זירה' },
   { to: '/cards', icon: CreditCard, label: 'קלפים' },
   { to: '/chat', icon: MessageCircle, label: 'צ\'אט' },
+  { to: '/rules', icon: BookOpen, label: 'חוקים' },
   { to: '/profile', icon: User, label: 'פרופיל' },
 ];
 
@@ -30,46 +31,52 @@ export default function TopNav({ user }) {
   return (
     <>
       <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur border-b border-border">
-        <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
-          <Link to="/" className="font-black text-lg text-primary">⚽ מונדיאל 2026</Link>
+        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center shadow-lg shadow-primary/20">
+              <Trophy className="text-white" size={18} />
+            </div>
+            <span className="font-black text-lg tracking-tighter">מונדיאל <span className="text-primary">2026</span></span>
+          </Link>
 
-          {/* Desktop nav */}
+          {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-1">
             {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
               <Link
                 key={to}
                 to={to}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors
+                className={`px-3 py-1.5 rounded-md text-sm font-bold transition-colors
                   ${location.pathname === to ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-muted'}`}
               >
-                <Icon size={15} />
                 {label}
               </Link>
             ))}
             {user?.is_admin && (
-              <Link to="/admin" className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-orange-600 hover:bg-orange-50">
-                <Shield size={15} />
+              <Link to="/admin" className="px-3 py-1.5 rounded-md text-sm font-bold text-orange-600 hover:bg-orange-50">
                 ניהול
               </Link>
             )}
-            <button onClick={handleSignOut} className="mr-2 text-sm text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg hover:bg-muted">
-              יציאה
-            </button>
           </div>
 
-          {/* Mobile hamburger */}
-          <button
-            className="md:hidden p-2 rounded-lg hover:bg-muted active:bg-muted touch-manipulation"
-            onPointerDown={e => { e.preventDefault(); setMenuOpen(o => !o); }}
-            aria-label="תפריט"
-          >
-            {menuOpen ? <X size={22} /> : <Menu size={22} />}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setMenuOpen(!menuOpen)}
+              className="md:hidden p-2 hover:bg-muted rounded-lg transition-colors"
+            >
+              {menuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+            <button 
+              onClick={handleSignOut}
+              className="hidden md:block text-xs font-bold text-muted-foreground hover:text-red-500 transition-colors"
+            >
+              התנתק
+            </button>
+          </div>
         </div>
 
         {/* Mobile menu */}
         {menuOpen && (
-          <div className="md:hidden border-t border-border bg-background">
+          <div className="md:hidden absolute top-14 left-0 right-0 bg-background border-b border-border shadow-xl animate-in slide-in-from-top duration-200">
             {NAV_ITEMS.map(({ to, icon: Icon, label }) => (
               <Link
                 key={to}
@@ -104,7 +111,7 @@ export default function TopNav({ user }) {
             className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors
               ${location.pathname === to ? 'text-primary' : 'text-muted-foreground'}`}
           >
-            <Icon size={20} />
+            <Icon size={18} className={location.pathname === to ? 'text-primary' : ''} />
             {label}
           </Link>
         ))}
