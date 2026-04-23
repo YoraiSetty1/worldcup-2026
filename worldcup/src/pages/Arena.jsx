@@ -4,6 +4,7 @@ import { useOutletContext } from 'react-router-dom';
 import { Swords, TrendingUp, Zap } from 'lucide-react';
 import { matchupsApi, profilesApi, cardsApi, matchesApi } from '../lib/supabase.js';
 import { motion } from 'framer-motion';
+import moment from 'moment'; // הוספנו את מומנט!
 
 export function Arena() {
   const { user } = useOutletContext();
@@ -14,7 +15,9 @@ export function Arena() {
 
   useEffect(() => {
     (async () => {
-      const today = new Date().toISOString().split('T')[0];
+      // התיקון הקריטי: שולפים את "היום" בחישוב של מינוס 10 שעות
+      const today = moment().subtract(10, 'hours').format('YYYY-MM-DD');
+      
       const [matchups, allCards, allMatches] = await Promise.all([
         matchupsApi.forDate(today),
         cardsApi.all(),
@@ -82,7 +85,6 @@ export function Arena() {
               
               const { u, color, bg, border } = item;
               return <div key={i} className="flex flex-col items-center gap-3 flex-1">
-                {/* תמונות פרופיל בזירה */}
                 <div className={`w-20 h-20 rounded-full ${bg} border-4 ${border} shadow-lg flex items-center justify-center text-3xl font-black ${color} overflow-hidden`}>
                   {u?.avatar_url ? (
                     <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />

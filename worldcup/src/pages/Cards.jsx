@@ -36,10 +36,14 @@ export default function Cards() {
   const loadAll = async () => {
     if (!user?.email) return;
     setLoading(true);
+    
+    // התיקון הקריטי: שולפים את "היום" בחישוב של מינוס 10 שעות
+    const today = moment().subtract(10, 'hours').format('YYYY-MM-DD');
+
     const [myCards, allCards, matchups, allMatches] = await Promise.all([
       cardsApi.forUser(user.email),
       cardsApi.all(),
-      matchupsApi.forDate(new Date().toISOString().split('T')[0]),
+      matchupsApi.forDate(today),
       matchesApi.list()
     ]);
 
@@ -50,7 +54,6 @@ export default function Cards() {
       return true;
     }));
 
-    // משחקים ב-24 שעות הקרובות + כאלו שהתחילו ב-50 דקות האחרונות (עבור שינוי תוצאה)
     const now = moment();
     const tomorrow = moment().add(24, 'hours');
     setUpcomingMatches(allMatches.filter(m => 
@@ -75,8 +78,8 @@ export default function Cards() {
   const checkWindow = (cardType, matchTime) => {
     const now = moment();
     const start = moment(matchTime);
-    const diffHours = start.diff(now, 'hours', true); // חיובי אם בעתיד
-    const diffMinutes = now.diff(start, 'minutes');    // חיובי אם כבר התחיל
+    const diffHours = start.diff(now, 'hours', true); 
+    const diffMinutes = now.diff(start, 'minutes');    
 
     if (ATTACK_CARDS.includes(cardType)) {
       if (diffHours > 4) return { ok: false, msg: 'מוקדם מדי! התקפה מתחילה רק עם נעילת ההימורים (4 שעות לפני).' };
@@ -88,7 +91,6 @@ export default function Cards() {
     }
 
     if (cardType === 'score_change') {
-      // חוק חדש: נפתח רק כשההימורים ננעלים
       if (diffHours > 4) return { ok: false, msg: 'הקלף ייפתח לשימוש רק לאחר נעילת ההימורים (4 שעות לפני המשחק).' };
       if (diffMinutes > 50) return { ok: false, msg: 'עברו 50 דקות מתחילת המשחק - הקלף ננעל.' };
     }
