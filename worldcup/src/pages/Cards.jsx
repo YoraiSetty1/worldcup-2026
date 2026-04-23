@@ -50,11 +50,12 @@ export default function Cards() {
       return true;
     }));
 
-    // משחקים ב-24 שעות הקרובות
+    // משחקים ב-24 שעות הקרובות + כאלו שהתחילו ב-50 דקות האחרונות (עבור שינוי תוצאה)
     const now = moment();
     const tomorrow = moment().add(24, 'hours');
     setUpcomingMatches(allMatches.filter(m => 
-      moment(m.kickoff_time).isBetween(now.clone().subtract(1, 'hour'), tomorrow)
+      moment(m.kickoff_time).isBetween(now.clone().subtract(1, 'hour'), tomorrow) &&
+      !['finished', 'ft', 'aet', 'pen'].includes(m.status?.toLowerCase())
     ).sort((a, b) => new Date(a.kickoff_time) - new Date(b.kickoff_time)));
 
     const myMatchup = matchups.find(m => m.user1_email === user.email || m.user2_email === user.email);
@@ -74,19 +75,24 @@ export default function Cards() {
   const checkWindow = (cardType, matchTime) => {
     const now = moment();
     const start = moment(matchTime);
-    const diffHours = start.diff(now, 'hours', true);
-    const diffMinutes = now.diff(start, 'minutes');
+    const diffHours = start.diff(now, 'hours', true); // חיובי אם בעתיד
+    const diffMinutes = now.diff(start, 'minutes');    // חיובי אם כבר התחיל
 
     if (ATTACK_CARDS.includes(cardType)) {
-      if (diffHours > 4) return { ok: false, msg: 'מוקדם מדי! התקפה מתחילה 4 שעות לפני.' };
-      if (diffHours < 1) return { ok: false, msg: 'מאוחר מדי! חלון ההתקפה נסגר שעה לפני.' };
+      if (diffHours > 4) return { ok: false, msg: 'מוקדם מדי! התקפה מתחילה רק עם נעילת ההימורים (4 שעות לפני).' };
+      if (diffHours < 1) return { ok: false, msg: 'מאוחר מדי! חלון ההתקפה נסגר שעה לפני המשחק.' };
     }
+    
     if (cardType === 'shield' || cardType === 'team_agnostic') {
       if (now.isAfter(start)) return { ok: false, msg: 'המשחק כבר התחיל!' };
     }
+
     if (cardType === 'score_change') {
+      // חוק חדש: נפתח רק כשההימורים ננעלים
+      if (diffHours > 4) return { ok: false, msg: 'הקלף ייפתח לשימוש רק לאחר נעילת ההימורים (4 שעות לפני המשחק).' };
       if (diffMinutes > 50) return { ok: false, msg: 'עברו 50 דקות מתחילת המשחק - הקלף ננעל.' };
     }
+    
     return { ok: true };
   };
 
@@ -101,7 +107,15 @@ export default function Cards() {
     }
 
     const available = filtered.filter(m => checkWindow(card.card_type, m.kickoff_time).ok);
-    if (available.length === 0) return toast.error('אין משחקים זמינים בחלון הזמן של קלף זה');
+    
+    if (available.length === 0) {
+      const firstMatch = filtered[0];
+      if (firstMatch) {
+        const reason = checkWindow(card.card_type, firstMatch.kickoff_time).msg;
+        return toast.error(reason);
+      }
+      return toast.error('אין משחקים זמינים בחלון הזמן של קלף זה');
+    }
 
     setModalMatches(available);
     setSelectedCard(card);
@@ -125,7 +139,6 @@ export default function Cards() {
 
       if (isAttack && opponentEmail) {
         const myName = user.nickname || user.full_name || 'מישהו';
-        // פוש "ערפל קרב" - לא מגלים את סוג הקלף
         await supabase.functions.invoke('send-push', {
           body: {
             type: 'card_attack',
@@ -146,7 +159,7 @@ export default function Cards() {
         <h1 className="text-xl font-black flex items-center gap-2"><Shield className="text-primary" size={22} />המלאי הטקטי</h1>
         <div className="grid grid-cols-2 gap-2 mt-3">
           <div className="bg-muted/50 p-2 rounded-lg text-[10px] font-bold text-muted-foreground flex items-center gap-1"><Clock size={12}/> התקפה: 4ש' עד 1ש' לפני</div>
-          <div className="bg-muted/50 p-2 rounded-lg text-[10px] font-bold text-muted-foreground flex items-center gap-1"><Zap size={12}/> שינוי: עד דקה 50</div>
+          <div className="bg-muted/50 p-2 rounded-lg text-[10px] font-bold text-muted-foreground flex items-center gap-1"><Zap size={12}/> שינוי: 4ש' לפני עד דקה 50</div>
         </div>
       </div>
 
@@ -174,7 +187,7 @@ export default function Cards() {
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-end sm:items-center justify-center p-0 backdrop-blur-sm">
           <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} className="bg-card w-full max-w-md rounded-t-3xl overflow-hidden shadow-2xl">
-            <div className={`p-4 text-white bg-gradient-to-r ${CARD_META[selectedCard.card_type].color} flex justify-between items-center`}>
+            <div className={`p-4 text-white bg-gradient-to-r ${CARD_META[selectedCard.card_type].color} flex justify-between items-center shadow-lg`}>
               <span className="font-black">בחר משחק יעד ({CARD_META[selectedCard.card_type].label})</span>
               <button onClick={() => setIsModalOpen(false)}><X size={20}/></button>
             </div>
@@ -186,7 +199,10 @@ export default function Cards() {
                     <span className="text-xs font-bold">{m.home_team_name} - {m.away_team_name}</span>
                     <img src={m.away_flag} className="w-6 h-6 object-contain" />
                   </div>
-                  <span className="text-[10px] font-black opacity-60">{moment(m.kickoff_time).format('HH:mm')}</span>
+                  <div className="flex flex-col items-end">
+                    <span className="text-[10px] font-black opacity-60">{moment(m.kickoff_time).format('HH:mm')}</span>
+                    <span className="text-[8px] font-bold text-primary">{moment(m.kickoff_time).format('DD/MM')}</span>
+                  </div>
                 </button>
               ))}
             </div>
