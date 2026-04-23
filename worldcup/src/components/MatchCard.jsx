@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Clock, Lock, CheckCircle, Users } from 'lucide-react';
+import { Clock, Lock, CheckCircle, Users, RefreshCw, ShieldAlert } from 'lucide-react';
 import moment from 'moment';
 
 function isMatchLive(match) {
@@ -16,11 +16,15 @@ function isMatchLive(match) {
   return false;
 }
 
-export default function MatchCard({ match, bet, onBet, compact = false, flipped = false, disabled, onViewFriends }) {
+export default function MatchCard({ match, bet, onBet, compact = false, disabled, onViewFriends, activeAttack }) {
   const computedLive = isMatchLive(match);
   const isFinished = ['ft', 'aet', 'pen', 'finished'].includes(match.status?.toLowerCase());
   
-  const isLocked = disabled !== undefined ? disabled : isFinished;
+  // נעילת הימורים אוטומטית 4 שעות לפני שריקת הפתיחה
+  const hoursToKickoff = match.kickoff_time ? moment(match.kickoff_time).diff(moment(), 'hours', true) : 0;
+  const isBettingLocked = hoursToKickoff <= 4;
+  
+  const isLocked = disabled !== undefined ? disabled : (isFinished || computedLive || isBettingLocked);
 
   const stageLabels = {
     group: `בית ${match.group_letter || ''}`,
@@ -33,7 +37,8 @@ export default function MatchCard({ match, bet, onBet, compact = false, flipped 
 
   if (compact) {
     return (
-      <div className="flex items-center justify-between p-3 bg-card border border-border rounded-xl shadow-sm">
+      <div className={`flex items-center justify-between p-3 bg-card border ${activeAttack ? 'border-red-400 bg-red-50/50' : 'border-border'} rounded-xl shadow-sm relative overflow-hidden`}>
+        {activeAttack && <div className="absolute left-0 top-0 bottom-0 w-1 bg-red-500" />}
         <div className="flex items-center gap-3 flex-1">
           <img src={match.home_flag} alt="" className="w-5 h-5 object-contain" />
           <span className="text-xs font-bold truncate max-w-[80px]">{match.home_team_name}</span>
@@ -50,7 +55,7 @@ export default function MatchCard({ match, bet, onBet, compact = false, flipped 
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-      className={`bg-card rounded-2xl border ${computedLive ? 'border-red-500 shadow-red-500/20 shadow-lg' : 'border-border'} overflow-hidden relative transition-all duration-500`}>
+      className={`bg-card rounded-2xl border ${computedLive ? 'border-red-500 shadow-red-500/20 shadow-lg' : activeAttack ? 'border-red-400 shadow-red-500/10 shadow-md' : 'border-border'} overflow-hidden relative transition-all duration-500`}>
       {computedLive && (
         <div className="absolute top-0 right-0 left-0 h-1.5 bg-red-500 overflow-hidden">
           <motion.div className="h-full bg-red-300" animate={{ x: ['-100%', '100%'] }} transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }} />
@@ -82,7 +87,7 @@ export default function MatchCard({ match, bet, onBet, compact = false, flipped 
                     {match.home_score ?? 0} : {match.away_score ?? 0}
                   </div>
                   <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                    <Lock size={10} /> הימורים סגורים
+                    <Lock size={10} /> {isBettingLocked && !isFinished && !computedLive ? 'הימורים ננעלו' : 'הימורים סגורים'}
                   </div>
                 </div>
                 
@@ -120,15 +125,39 @@ export default function MatchCard({ match, bet, onBet, compact = false, flipped 
         </div>
 
         {bet && (
-          <div className="flex items-center justify-between mt-2 pt-3 border-t border-dashed border-border">
-            <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
-              <CheckCircle size={14} className="text-primary" />
-              הניחוש שלך: {bet.home_score} - {bet.away_score}
-            </div>
-            {bet.points_earned !== undefined && (
-              <div className="text-xs font-black bg-primary/10 text-primary px-2 py-1 rounded-lg">
-                +{bet.points_earned} נק׳
+          <div className="flex flex-col mt-2 pt-3 border-t border-dashed border-border gap-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
+                <CheckCircle size={14} className={activeAttack === 'result_flip' ? 'text-red-500' : 'text-primary'} />
+                הניחוש שלך: 
+                {activeAttack === 'result_flip' ? (
+                  <div className="flex items-center gap-1 dir-ltr">
+                    <span className="text-red-500 line-through opacity-70">{bet.home_score} - {bet.away_score}</span>
+                    <span className="text-red-600 font-black ml-1">{bet.away_score} - {bet.home_score}</span>
+                  </div>
+                ) : (
+                  <span className="ml-1 dir-ltr inline-block">{bet.home_score} - {bet.away_score}</span>
+                )}
               </div>
+              {bet.points_earned !== undefined && (
+                <div className="text-xs font-black bg-primary/10 text-primary px-2 py-1 rounded-lg">
+                  +{bet.points_earned} נק׳
+                </div>
+              )}
+            </div>
+
+            {/* התרעות התקפה בולטות שיגרמו להם להזיע ולזרוק מגן! */}
+            {activeAttack === 'result_flip' && (
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} 
+                className="bg-red-500/10 text-red-600 border border-red-500/30 px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-[11px] font-black w-full shadow-inner mt-1">
+                <RefreshCw size={14} className="animate-spin" style={{ animationDuration: '3s' }} /> התוצאה התהפכה! (זרוק מגן כדי לבטל)
+              </motion.div>
+            )}
+            {activeAttack === 'block_exact' && (
+              <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} 
+                className="bg-purple-500/10 text-purple-600 border border-purple-500/30 px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-[11px] font-black w-full shadow-inner mt-1">
+                <ShieldAlert size={14} className="animate-pulse" /> חסימת מדויק הופעלה! (זרוק מגן כדי לבטל)
+              </motion.div>
             )}
           </div>
         )}
