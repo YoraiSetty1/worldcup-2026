@@ -14,7 +14,7 @@ const RuleSection = ({ icon: Icon, title, children, color }) => (
       </div>
       <h2 className="text-xl font-black">{title}</h2>
     </div>
-    <div className="space-y-3 text-sm font-medium text-muted-foreground leading-relaxed">
+    <div className="space-y-3 text-sm font-medium text-muted-foreground leading-relaxed" dir="rtl">
       {children}
     </div>
   </motion.div>
@@ -22,7 +22,7 @@ const RuleSection = ({ icon: Icon, title, children, color }) => (
 
 export default function Rules() {
   return (
-    <div className="max-w-3xl mx-auto pb-24 px-4 pt-4">
+    <div className="max-w-3xl mx-auto pb-24 px-4 pt-4" dir="rtl">
       <div className="flex items-center gap-3 mb-8">
         <BookOpen className="text-primary" size={32} />
         <h1 className="text-3xl font-black">חוקי הפורמט</h1>
@@ -36,50 +36,56 @@ export default function Rules() {
             </h3>
             <ul className="list-disc list-inside space-y-1 pr-2">
               <li><span className="text-foreground font-bold">3 נקודות:</span> פגיעה בתוצאה המדויקת.</li>
-              <li><span className="text-foreground font-bold">1 נקודה:</span> פגיעה בכיוון (ניצחון/תיקו).</li>
+              <li><span className="text-foreground font-bold">1 נקודה:</span> פגיעה בכיוון המשחק (ניצחון/תיקו).</li>
             </ul>
           </div>
           
           <div className="bg-primary/5 p-4 rounded-xl border border-primary/20">
             <h3 className="text-primary font-black mb-2 flex items-center gap-2">
-              🔥 חצי גמר וגמר (ניקוד כפול!):
+              🔥 חצי גמר וגמר (ניקוד כפול):
             </h3>
             <ul className="list-disc list-inside space-y-1 pr-2">
               <li><span className="text-foreground font-bold">6 נקודות:</span> פגיעה בתוצאה המדויקת.</li>
-              <li><span className="text-foreground font-bold">3 נקודות:</span> פגיעה בכיוון (ניצחון/תיקו).</li>
+              <li><span className="text-foreground font-bold">3 נקודות:</span> פגיעה בכיוון המשחק (ניצחון/תיקו).</li>
             </ul>
           </div>
         </div>
       </RuleSection>
 
       <RuleSection icon={Zap} title="קלפי תקיפה והגנה" color="bg-purple-500/10 text-purple-600">
-        <p className="mb-4">הקלפים הם הנשק שלכם. ניתן להשתמש בהם פעם אחת ביום לכל סוג, <span className="text-red-500 font-black underline">אך ורק עד שלב רבע הגמר (כולל)</span>. בחצי הגמר והגמר לא ניתן להשתמש בקלפים!</p>
+        <p className="mb-4">
+          הקלפים הם הנשק הסודי שלכם. ניתן להשתמש בהם פעם אחת ביום לכל סוג, 
+          <span className="text-red-500 font-black underline mx-1">אך ורק עד שלב רבע הגמר (כולל)</span>.
+        </p>
         
         <div className="grid gap-4">
           <div className="bg-muted/50 p-3 rounded-xl border border-border">
             <span className="text-red-600 font-black flex items-center gap-1 mb-1">
-              ⚔️ היפוך תוצאה (Result Flip) - תקיפה
+              ⚔️ היפוך תוצאה (Result Flip)
             </span>
-            הופך את הניחוש של היריב. אם הוא הימר 2-0 לבית, זה הופך ל-2-0 לחוץ.
+            הופך את הניחוש של היריב. אם הוא הימר 2-0 לטובת קבוצה א', זה הופך ל-2-0 לטובת קבוצה ב'.
           </div>
           <div className="bg-muted/50 p-3 rounded-xl border border-border">
             <span className="text-purple-600 font-black flex items-center gap-1 mb-1">
-              ⚔️ חסימת מדויק (Block Exact) - תקיפה
+              ⚔️ חסימת מדויק (Block Exact)
             </span>
-            מונע מהיריב לקבל ניקוד על תוצאה מדויקת (יקבל רק על כיוון).
+            מונע מהיריב לקבל ניקוד על תוצאה מדויקת (יקבל לכל היותר נקודה אחת על כיוון).
           </div>
           <div className="bg-green-500/10 text-green-700 p-3 rounded-xl border border-green-500/20">
             <span className="font-black flex items-center gap-1 mb-1">
-              🛡️ מגן (Shield) - הגנה
+              🛡️ מגן (Shield)
             </span>
-            הקלף היחיד שמבטל תקיפה שבוצעה עליכם. מחזיר את הניחוש שלכם למקור.
+            הקלף היחיד שמבטל תקיפה שבוצעה עליכם. מחזיר את הניחוש למקור.
           </div>
         </div>
       </RuleSection>
 
       <RuleSection icon={Star} title="קלפי בונוס אישיים" color="bg-blue-500/10 text-blue-600">
-        <p>קלפים אלו משפיעים על הניחוש שלכם בלבד ועוזרים לכם למקסם נקודות:</p>
-        <div className="grid gap-4 mt-4">
+        <p className="mb-4">
+          גם קלפים אלו ניתנים לשימוש 
+          <span className="text-red-500 font-black underline mx-1">רק עד סוף שלב רבע הגמר</span>:
+        </p>
+        <div className="grid gap-4">
           <div className="bg-blue-500/5 p-3 rounded-xl border border-blue-500/20">
             <span className="text-blue-600 font-black flex items-center gap-1 mb-1">
               🔄 שינוי תוצאה (Score Change)
@@ -90,23 +96,23 @@ export default function Rules() {
             <span className="text-blue-600 font-black flex items-center gap-1 mb-1">
               🌍 בלי קשר לקבוצה (Team Agnostic)
             </span>
-            הניחוש שלכם יתפוס לכל תוצאה! הימרתם 2-1 והמשחק נגמר 2-1 לכל צד? קיבלתם את הניקוד המלא.
+            הניחוש שלכם יתפוס לכל תוצאה זהה! אם הימרתם 2-1 והמשחק נגמר 2-1 לכל צד, תקבלו ניקוד מלא.
           </div>
         </div>
       </RuleSection>
 
       <RuleSection icon={Swords} title="זירת העימות (Arena)" color="bg-red-500/10 text-red-600">
         <p>מדי יום המערכת מגרילה לכם "יריב יומי" מהקבוצה.</p>
-        <ul className="list-disc list-inside space-y-2">
-          <li>מי שצובר יותר נקודות באותו יום מול היריב שלו, זוכה ב-<span className="text-foreground font-bold">2 נקודות בונוס</span> בטבלה.</li>
-          <li>התקיפות (היפוך וחסימה) ניתנות לביצוע <span className="font-bold">רק נגד היריב היומי שלכם</span>.</li>
+        <ul className="list-disc list-inside space-y-2 pr-2">
+          <li>מי שצובר יותר נקודות באותו יום מול היריב שלו, זוכה ב-<span className="text-foreground font-bold">2 נקודות בונוס</span> בטבלה הכללית.</li>
+          <li>ניתן לתקוף בקלפים אך ורק את היריב היומי שלכם.</li>
         </ul>
       </RuleSection>
 
-      <RuleSection icon={Clock} title="זמני הימורים" color="bg-orange-500/10 text-orange-600">
-        <ul className="list-disc list-inside space-y-2">
-          <li><span className="text-foreground font-bold">נעילת הימורים:</span> 4 שעות לפני שריקת הפתיחה (מלבד שימוש בקלף שינוי תוצאה).</li>
-          <li><span className="text-foreground font-bold">סיום קלפים:</span> עם שריקת הסיום של רבע הגמר האחרון, כל הקלפים שנותרו לכם בתיק יימחקו. השתמשו בהם בחוכמה!</li>
+      <RuleSection icon={Clock} title="זמני הימורים ושימוש בקלפים" color="bg-orange-500/10 text-orange-600">
+        <ul className="list-disc list-inside space-y-2 pr-2">
+          <li><span className="text-foreground font-bold">נעילת הימורים:</span> 4 שעות לפני שריקת הפתיחה (למעט שימוש בקלף שינוי תוצאה).</li>
+          <li><span className="text-foreground font-bold">תפוגת קלפים:</span> עם שריקת הסיום של רבע הגמר האחרון, כל הקלפים (תקיפה, הגנה ובונוס) יימחקו מהמערכת. אל תשאירו קלפים בכיס!</li>
         </ul>
       </RuleSection>
 
