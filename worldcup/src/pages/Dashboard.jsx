@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useOutletContext, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Trophy, Target, Swords, Calendar, ChevronLeft } from 'lucide-react';
-import { matchesApi, profilesApi, betsApi } from '../lib/supabase.js';
+// הוספתי פה את supabase ליבוא
+import { matchesApi, profilesApi, betsApi, supabase } from '../lib/supabase.js';
 import MatchCard from '../components/MatchCard';
 import Onboarding from './Onboarding';
 
@@ -17,20 +18,38 @@ export default function Dashboard() {
 
   const loadData = async () => {
     setLoading(true);
-    const [matchList, profiles, allBets, myBetList] = await Promise.all([
+    const [matchList, profiles, allBets, myBetList, { data: allMatchups }] = await Promise.all([
       matchesApi.list(),
       profilesApi.list(),
       betsApi.listAll(),
       user?.email ? betsApi.forUser(user.email) : [],
+      supabase.from('daily_matchups').select('winner_email')
     ]);
+    
     setMatches(matchList);
     setMyBets(myBetList);
+    
     const pointsMap = {};
-    allBets.forEach(b => { pointsMap[b.user_email] = (pointsMap[b.user_email] || 0) + (b.points_earned || 0); });
+    
+    // חישוב נקודות רגילות מניחושים
+    allBets.forEach(b => { 
+      pointsMap[b.user_email] = (pointsMap[b.user_email] || 0) + (b.points_earned || 0); 
+    });
+    
+    // התיקון שלך: חישוב נקודות בונוס מהזירה
+    if (allMatchups) {
+      allMatchups.forEach(m => {
+        if (m.winner_email && m.winner_email !== 'tie') {
+          pointsMap[m.winner_email] = (pointsMap[m.winner_email] || 0) + 2;
+        }
+      });
+    }
+
     const lb = profiles
       .filter(u => u.onboarding_complete || u.nickname)
       .map(u => ({ ...u, total_points: pointsMap[u.email] || 0 }))
       .sort((a, b) => b.total_points - a.total_points);
+      
     setLeaderboard(lb);
     setLoading(false);
   };
