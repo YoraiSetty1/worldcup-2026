@@ -20,7 +20,6 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
   const computedLive = isMatchLive(match);
   const isFinished = ['ft', 'aet', 'pen', 'finished'].includes(match.status?.toLowerCase());
   
-  // נעילת הימורים אוטומטית 4 שעות לפני שריקת הפתיחה
   const hoursToKickoff = match.kickoff_time ? moment(match.kickoff_time).diff(moment(), 'hours', true) : 0;
   const isBettingLocked = hoursToKickoff <= 4;
   
@@ -91,7 +90,6 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
                   </div>
                 </div>
                 
-                {/* כפתור הימורי חברים */}
                 <button
                   onClick={() => onViewFriends && onViewFriends(match)}
                   className="flex items-center gap-1.5 text-[11px] font-black tracking-wide text-primary bg-primary/10 hover:bg-primary/20 px-4 py-2 rounded-full transition-all active:scale-95"
@@ -131,12 +129,12 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
                 <CheckCircle size={14} className={activeAttack === 'result_flip' ? 'text-red-500' : 'text-primary'} />
                 הניחוש שלך: 
                 {activeAttack === 'result_flip' ? (
-                  <div className="flex items-center gap-1 dir-ltr">
+                  <div className="flex items-center gap-1 font-sans">
                     <span className="text-red-500 line-through opacity-70">{bet.home_score} - {bet.away_score}</span>
                     <span className="text-red-600 font-black ml-1">{bet.away_score} - {bet.home_score}</span>
                   </div>
                 ) : (
-                  <span className="ml-1 dir-ltr inline-block">{bet.home_score} - {bet.away_score}</span>
+                  <span className="ml-1 font-sans inline-block">{bet.home_score} - {bet.away_score}</span>
                 )}
               </div>
               {bet.points_earned !== undefined && (
@@ -146,7 +144,6 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
               )}
             </div>
 
-            {/* התרעות התקפה בולטות שיגרמו להם להזיע ולזרוק מגן! */}
             {activeAttack === 'result_flip' && (
               <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} 
                 className="bg-red-500/10 text-red-600 border border-red-500/30 px-3 py-2 rounded-lg flex items-center justify-center gap-2 text-[11px] font-black w-full shadow-inner mt-1">

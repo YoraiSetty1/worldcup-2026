@@ -4,7 +4,6 @@ import moment from 'moment';
 import 'moment/locale/he';
 import { ChevronDown, Calendar, Users, X } from 'lucide-react';
 import { motion } from 'framer-motion';
-// הוספתי פה את supabase ליבוא!
 import { supabase, matchesApi, betsApi, cardsApi } from '../lib/supabase.js';
 import MatchCard from '../components/MatchCard';
 import { toast } from 'sonner';
@@ -16,6 +15,7 @@ export default function Matches() {
   const [matches, setMatches] = useState([]);
   const [bets, setBets] = useState({});
   const [userCards, setUserCards] = useState([]); 
+  const [activeAttacksMap, setActiveAttacksMap] = useState({}); // מפה של התקפות פעילות נגדך
   const [pendingBets, setPendingBets] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -32,19 +32,36 @@ export default function Matches() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [matchList, betList, cardList] = await Promise.all([
+      // מושכים גם את כל הקלפים (כדי לדעת אם מישהו תקף אותך)
+      const [matchList, betList, myCardsList, allCardsList] = await Promise.all([
         matchesApi.list(),
         user?.email ? betsApi.forUser(user.email) : [],
         user?.email ? cardsApi.forUser(user.email) : [],
+        cardsApi.all()
       ]);
       
       setMatches(matchList);
-      setUserCards(cardList);
+      setUserCards(myCardsList);
       
       const betMap = {};
       betList.forEach(b => { betMap[b.match_id] = b; });
       setBets(betMap);
       setPendingBets({});
+
+      // בניית מפת התקפות: בודקים אם מישהו תקף אותך ואין לך מגן שחוסם
+      const attackMap = {};
+      if (user?.email) {
+        const attacks = allCardsList.filter(c => c.is_used && c.used_against_email === user.email && ['result_flip', 'block_exact'].includes(c.card_type));
+        const shields = myCardsList.filter(c => c.is_used && c.card_type === 'shield').map(c => String(c.used_on_match_id));
+
+        attacks.forEach(a => {
+          if (!shields.includes(String(a.used_on_match_id))) {
+            attackMap[a.used_on_match_id] = a.card_type;
+          }
+        });
+      }
+      setActiveAttacksMap(attackMap);
+
     } catch (err) {
       toast.error('שגיאה בטעינת הנתונים');
     } finally {
@@ -72,14 +89,11 @@ export default function Matches() {
     }
   };
 
-  // הפונקציה ששולפת את ההימורים של כולם
   const openFriendsBets = async (match) => {
     setFriendsModalMatch(match);
     setLoadingFriends(true);
     try {
-      // שליפת כל ההימורים למשחק הזה
       const { data: allBets } = await supabase.from('bets').select('*').eq('match_id', match.id);
-      // שליפת כל הפרופילים כדי להציג שמות ותמונות
       const { data: allProfiles } = await supabase.from('profiles').select('*');
 
       const enrichedBets = (allBets || []).map(b => {
@@ -130,9 +144,11 @@ export default function Matches() {
             if (['finished', 'ft', 'aet', 'pen'].includes(status)) {
               isLocked = true;
             } else if (['1h', 'ht', '2h', 'et', 'p', 'live'].includes(status) || (startTime.diff(now, 'minutes') <= 0)) {
-              isLocked = isScoreChangeActiveForThisMatch ? now.diff(startTime, 'minutes') > 45 : true;
+              // קלף שינוי תוצאה דוחה את הנעילה עד דקה 50
+              isLocked = isScoreChangeActiveForThisMatch ? now.diff(startTime, 'minutes') > 50 : true;
             } else {
-              isLocked = startTime.diff(now, 'minutes') <= 120;
+              // נעילה רגילה - 4 שעות (240 דקות) לפני שריקת הפתיחה
+              isLocked = startTime.diff(now, 'minutes') <= 240;
             }
 
             return (
@@ -143,6 +159,7 @@ export default function Matches() {
                 onBet={data => handleBetChange(m.id, data)}
                 disabled={isLocked}
                 onViewFriends={openFriendsBets}
+                activeAttack={activeAttacksMap[m.id]} // מעבירים את ההתקפה לכרטיסייה!
               />
             );
           })}
@@ -193,7 +210,6 @@ export default function Matches() {
         </div>
       )}
 
-      {/* מודל הימורי חברים */}
       {friendsModalMatch && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-card w-full max-w-md rounded-2xl shadow-2xl border border-border overflow-hidden">
