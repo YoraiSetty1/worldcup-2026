@@ -1,104 +1,65 @@
-// supabase/functions/send-push/index.ts
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import webpush from 'npm:web-push@3.6.7';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1"
+import webpush from "https://esm.sh/web-push@3.6.6"
 
-const VAPID_PUBLIC_KEY = Deno.env.get('VAPID_PUBLIC_KEY')!;
-const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY')!;
-const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SUPABASE_SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
-// הגדרת המפתחות באופן מובנה ובטוח
-webpush.setVapidDetails(
-  'mailto:thedruggedog@gmail.com',
-  VAPID_PUBLIC_KEY,
-  VAPID_PRIVATE_KEY
-);
-
-Deno.serve(async (req) => {
-  // טיפול בבקשות מהדפדפן (CORS)
+serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { 
-      headers: { 
-        'Access-Control-Allow-Origin': '*', 
-        'Access-Control-Allow-Headers': 'authorization, content-type' 
-      } 
-    });
+    return new Response('ok', { headers: corsHeaders })
   }
 
   try {
-    const reqBody = await req.json();
-    let { type, data, exclude_email } = reqBody;
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    const supabase = createClient(supabaseUrl!, supabaseServiceKey!)
 
-    // התאמה אוטומטית ל-Webhooks של סופאבייס
-    if (reqBody.type === 'INSERT' && reqBody.record) {
-      if (reqBody.table === 'chat_messages') {
-        type = 'chat';
-        data = {
-          nickname: reqBody.record.user_nickname,
-          message: reqBody.record.message
-        };
-        exclude_email = reqBody.record.user_email; // לא לשלוח התראה למי שכתב את ההודעה
-      }
-    }
+    webpush.setVapidDetails(
+      'mailto:admin@example.com',
+      Deno.env.get('VAPID_PUBLIC_KEY')!,
+      Deno.env.get('VAPID_PRIVATE_KEY')!
+    )
 
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-    const { data: subs } = await supabase.from('push_subscriptions').select('*');
+    const { type, data, target_email, sender_email } = await req.json()
 
-    if (!subs || subs.length === 0) {
-      return new Response(JSON.stringify({ sent: 0, msg: 'No subs found' }), { headers: { 'Content-Type': 'application/json' } });
-    }
-
-    let title = '';
-    let body = '';
-    let url = '/';
-
-    if (type === 'chat') {
-      title = `💬 הודעה חדשה מ-${data?.nickname || 'מישהו'}`;
-      body = data?.message?.slice(0, 100) || '';
-      url = '/chat';
-    } else if (type === 'card_attack') {
-      title = '⚔️ מתקפה בזירה!';
-      body = `${data?.attacker} הפעיל נגדך קלף`;
-      url = '/arena';
-    } else {
-      return new Response(JSON.stringify({ sent: 0, msg: 'Unknown event type' }), { headers: { 'Content-Type': 'application/json' } });
-    }
-
-    const payload = JSON.stringify({ title, body, url });
-    let sent = 0;
-
-    // מעבר על כל המנויים ושליחת ההתראות במקביל
-    const pushPromises = subs.map(async (sub) => {
-      // דילוג על השולח עצמו
-      if (exclude_email && sub.user_email === exclude_email) return;
-      
-      try {
-        // נוודא שהמנוי הוא אובייקט ולא מחרוזת טקסט
-        const subData = typeof sub.subscription === 'string' ? JSON.parse(sub.subscription) : sub.subscription;
-        await webpush.sendNotification(subData, payload);
-        sent++;
-      } catch (e) {
-        console.error(`Push failed for ${sub.user_email}:`, e.message);
-        console.error(`Apple/Google Response:`, e.body); // חשיפת התשובה האמיתית של שרתי אפל
-        
-        // מחיקת מנויים לא חוקיים
-        if (e.statusCode === 404 || e.statusCode === 410) {
-          await supabase.from('push_subscriptions').delete().eq('id', sub.id);
-        }
-      }
-    });
-
-    await Promise.all(pushPromises);
-
-    return new Response(JSON.stringify({ sent }), {
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-    });
+    let query = supabase.from('push_subscriptions').select('*')
     
+    // שליחה למותקף בלבד או לכולם חוץ מהשולח בצ'אט
+    if (target_email) {
+      query = query.eq('user_email', target_email)
+    } else if (sender_email) {
+      query = query.neq('user_email', sender_email)
+    }
+
+    const { data: subscriptions, error } = await query
+    if (error) throw error
+
+    let payload = { title: 'מונדיאל 2026', body: 'התראה חדשה' }
+    
+    if (type === 'chat_message') {
+      payload = { title: `הודעה מ-${data.sender}`, body: data.text }
+    } else if (type === 'card_attack') {
+      payload = { title: '🚨 הותקפת בטירוף!', body: `${data.attacker} זרק עליך קלף במשחק ${data.match_name}! כנס לשים מגן!` }
+    }
+
+    const promises = subscriptions.map((sub) => {
+      return webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { auth: sub.auth_key, p256dh: sub.p256dh_key } },
+        JSON.stringify(payload)
+      ).catch((e) => {
+        if (e.statusCode === 404 || e.statusCode === 410) {
+          return supabase.from('push_subscriptions').delete().eq('id', sub.id)
+        }
+      })
+    })
+
+    await Promise.all(promises)
+
+    return new Response(JSON.stringify({ success: true }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   } catch (err) {
-    console.error('Critical function error:', err);
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-    });
+    return new Response(JSON.stringify({ error: err.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
   }
-});
+})
