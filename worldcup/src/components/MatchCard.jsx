@@ -2,6 +2,21 @@ import { motion } from 'framer-motion';
 import { Clock, Lock, CheckCircle, Users, RefreshCw, ShieldAlert } from 'lucide-react';
 import moment from 'moment';
 
+// פונקציית עזר שמתרגמת את הניחוש למשפט מילולי ברור
+const getBetOutcomeText = (homeS, awayS, homeName, awayName) => {
+  if (homeS === undefined || awayS === undefined || homeS === '' || awayS === '') return '';
+  
+  const max = Math.max(homeS, awayS);
+  const min = Math.min(homeS, awayS);
+  
+  // תגית LTR שמונעת מהדפדפן להפוך את כיוון התוצאה
+  const scoreTag = <span dir="ltr" className="font-sans font-black inline-block mx-1">{max}-{min}</span>;
+
+  if (homeS > awayS) return <>{scoreTag} לטובת <span className="font-bold">{homeName}</span></>;
+  if (homeS < awayS) return <>{scoreTag} לטובת <span className="font-bold">{awayName}</span></>;
+  return <>תיקו <span dir="ltr" className="font-sans font-black inline-block ml-1">{homeS}-{awayS}</span></>;
+};
+
 function isMatchLive(match) {
   const finishedStatuses = ['ft', 'aet', 'pen', 'finished'];
   if (finishedStatuses.includes(match.status?.toLowerCase())) return false;
@@ -11,7 +26,6 @@ function isMatchLive(match) {
 
   if (match.kickoff_time) {
     const minutesSinceStart = moment().diff(moment(match.kickoff_time), 'minutes');
-    // אם הגיעה שעת הפתיחה ועוד לא התקבל סטטוס סיום - הוא לייב!
     if (minutesSinceStart >= 0) return true;
   }
   return false;
@@ -123,23 +137,32 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
           </div>
         </div>
 
+        {/* --- אזור הניחוש והמשפטים המילוליים --- */}
         {bet && (
           <div className="flex flex-col mt-2 pt-3 border-t border-dashed border-border gap-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
-                <CheckCircle size={14} className={activeAttack === 'result_flip' ? 'text-red-500' : 'text-primary'} />
-                הניחוש שלך: 
+            <div className="flex items-start justify-between">
+              
+              <div className="flex items-start gap-2 text-xs font-bold text-muted-foreground">
+                <CheckCircle size={14} className={`mt-0.5 shrink-0 ${activeAttack === 'result_flip' ? 'text-red-500' : 'text-primary'}`} />
+                
                 {activeAttack === 'result_flip' ? (
-                  <div className="flex items-center gap-1 font-sans">
-                    <span className="text-red-500 line-through opacity-70">{bet.home_score} - {bet.away_score}</span>
-                    <span className="text-red-600 font-black ml-1">{bet.away_score} - {bet.home_score}</span>
+                  <div className="flex flex-col gap-1">
+                    <div className="text-red-500 line-through opacity-70 text-[11px] leading-tight">
+                      היה: {getBetOutcomeText(bet.home_score, bet.away_score, match.home_team_name, match.away_team_name)}
+                    </div>
+                    <div className="text-red-600 font-black leading-tight text-xs">
+                      עכשיו: {getBetOutcomeText(bet.away_score, bet.home_score, match.home_team_name, match.away_team_name)}
+                    </div>
                   </div>
                 ) : (
-                  <span className="ml-1 font-sans inline-block">{bet.home_score} - {bet.away_score}</span>
+                  <div className="leading-tight">
+                    הניחוש שלך: <span className="text-foreground">{getBetOutcomeText(bet.home_score, bet.away_score, match.home_team_name, match.away_team_name)}</span>
+                  </div>
                 )}
               </div>
+
               {bet.points_earned !== undefined && (
-                <div className="text-xs font-black bg-primary/10 text-primary px-2 py-1 rounded-lg">
+                <div className="text-xs font-black bg-primary/10 text-primary px-2 py-1 rounded-lg shrink-0 ml-2">
                   +{bet.points_earned} נק׳
                 </div>
               )}
