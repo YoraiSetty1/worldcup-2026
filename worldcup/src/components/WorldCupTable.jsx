@@ -86,7 +86,7 @@ export function WorldCupTable() {
 
       setStandings(sortedGroups);
 
-      // --- סינון משחקי נוקאאוט לפי התגיות החדשות שלנו ---
+      // --- סינון משחקי נוקאאוט ---
       const koMatches = matches.filter(m => ROUNDS.some(r => r.id === m.stage));
       setKnockoutMatches(koMatches);
 
@@ -186,23 +186,24 @@ export function WorldCupTable() {
             </div>
           )
         ) : (
-          /* פה העץ מוטמע בתוך הלשונית! */
-          <div className="flex gap-8 overflow-x-auto pb-8 snap-x dir-ltr">
+          /* אזור העץ מיושר! מתחיל מימין לשמאל */
+          <div className="flex gap-8 overflow-x-auto pb-8 snap-x items-stretch">
             {ROUNDS.map((round, index) => {
               const roundMatches = knockoutMatches.filter(m => m.stage === round.id);
               
               if (roundMatches.length === 0 && index !== 0) return null;
 
               return (
-                <div key={round.id} className="flex flex-col gap-6 min-w-[280px] snap-center">
-                  <div className="bg-muted text-center py-2 rounded-xl border border-border shadow-sm sticky top-0 z-10">
+                <div key={round.id} className="flex flex-col min-w-[280px] snap-center">
+                  <div className="bg-muted text-center py-2 rounded-xl border border-border shadow-sm sticky top-0 z-20 mb-4">
                     <h3 className="font-black text-sm text-foreground flex items-center justify-center gap-2">
                       {round.id === 'final' && <Trophy size={16} className="text-yellow-500" />}
                       {round.title}
                     </h3>
                   </div>
 
-                  <div className="flex flex-col gap-4 flex-1 justify-around">
+                  {/* flex-1 + justify-around עושה את הקסם של המרכוז האנכי! */}
+                  <div className="flex flex-col flex-1 justify-around relative">
                     {roundMatches.length > 0 ? (
                       roundMatches.map((m, i) => (
                         <motion.div 
@@ -210,12 +211,19 @@ export function WorldCupTable() {
                           initial={{ opacity: 0, x: -20 }} 
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: i * 0.1 }}
-                          className="relative"
+                          className="relative my-2 z-10"
                         >
+                          {/* קו חיבור יוצא שמאלה (לשלב הבא) */}
                           {index < ROUNDS.length - 1 && (
-                            <div className="absolute top-1/2 -right-4 w-4 h-[2px] bg-border hidden sm:block" />
+                            <div className="absolute top-1/2 -left-4 w-4 h-[2px] bg-border hidden md:block" />
                           )}
-                          <div className="dir-rtl">
+                          
+                          {/* קו חיבור נכנס מימין (מהשלב הקודם) */}
+                          {index > 0 && (
+                            <div className="absolute top-1/2 -right-4 w-4 h-[2px] bg-border hidden md:block" />
+                          )}
+
+                          <div className="bg-background rounded-xl">
                              <MatchCard match={m} compact={true} />
                           </div>
                         </motion.div>
