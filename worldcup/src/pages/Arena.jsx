@@ -1,10 +1,10 @@
 // Arena.jsx
 import { useState, useEffect } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext } from 'react-dom';
 import { Swords, TrendingUp, Zap } from 'lucide-react';
 import { matchupsApi, profilesApi, cardsApi, matchesApi } from '../lib/supabase.js';
 import { motion } from 'framer-motion';
-import moment from 'moment'; // הוספנו את מומנט!
+import moment from 'moment';
 
 export function Arena() {
   const { user } = useOutletContext();
@@ -15,9 +15,8 @@ export function Arena() {
 
   useEffect(() => {
     (async () => {
-      // התיקון הקריטי: שולפים את "היום" בחישוב של מינוס 10 שעות
+      // חלון 10:00 בבוקר (החזרתי לך את זה לפה!)
       const today = moment().subtract(10, 'hours').format('YYYY-MM-DD');
-      
       const [matchups, allCards, allMatches] = await Promise.all([
         matchupsApi.forDate(today),
         cardsApi.all(),
@@ -36,19 +35,35 @@ export function Arena() {
         setOpponent(opp);
 
         const CARD_NAMES = { team_agnostic: 'בלי קשר לקבוצה', result_flip: 'היפוך תוצאה', score_change: 'שינוי תוצאה', block_exact: 'חסימת מדויק', shield: 'מגן' };
-        const myName = user?.nickname || user?.full_name || 'אתה';
         const oppName = opp?.nickname || opp?.full_name || oppEmail.split('@')[0];
         const log = [];
         
-        allCards.filter(c => c.user_email === oppEmail && c.is_used && c.used_against_email === user?.email && ['result_flip', 'block_exact'].includes(c.card_type))
-          .forEach(c => {
-            const m = allMatches.find(x => x.id === c.used_on_match_id);
-            log.push({ text: `${oppName} הפעיל "${CARD_NAMES[c.card_type]}" נגד ${myName}${m ? ` במשחק ${m.home_team_name} נגד ${m.away_team_name}` : ''}`, type: 'attack' });
-          });
+        allCards.forEach(c => {
+          if (!c.is_used) return;
           
-        allCards.filter(c => c.user_email === user?.email && c.is_used && c.card_type === 'shield')
-          .forEach(c => { log.push({ text: `${myName} הפעיל מגן`, type: 'shield' }); });
+          const byMeAgainstHim = c.user_email === user?.email && c.used_against_email === oppEmail;
+          const byHimAgainstMe = c.user_email === oppEmail && c.used_against_email === user?.email;
           
+          if (!byMeAgainstHim && !byHimAgainstMe) return;
+
+          const m = allMatches.find(x => x.id === c.used_on_match_id);
+          const matchText = m ? ` במשחק ${m.home_team_name} נגד ${m.away_team_name}` : '';
+          
+          if (['result_flip', 'block_exact'].includes(c.card_type)) {
+            if (byMeAgainstHim) {
+              log.push({ text: `הפעלת "${CARD_NAMES[c.card_type]}" נגד ${oppName}${matchText}`, type: 'attack_me' });
+            } else {
+              log.push({ text: `${oppName} הפעיל "${CARD_NAMES[c.card_type]}" נגדך${matchText}`, type: 'attack_opp' });
+            }
+          } else if (c.card_type === 'shield') {
+            if (byMeAgainstHim) {
+              log.push({ text: `הפעלת מגן${matchText}`, type: 'shield_me' });
+            } else {
+              log.push({ text: `${oppName} הפעיל מגן${matchText}`, type: 'shield_opp' });
+            }
+          }
+        });
+        
         setActionLog(log);
       } else {
         setMatchup(null);
@@ -125,8 +140,14 @@ export function Arena() {
           {actionLog.length === 0
             ? <p className="text-center text-muted-foreground font-medium py-8 text-sm">הזירה שקטה... אף קלף לא הופעל היום.</p>
             : actionLog.map((e, i) => (
-              <div key={i} className={`px-5 py-4 text-sm font-medium flex items-center gap-3 ${i > 0 ? 'border-t border-border/50' : ''} ${e.type === 'attack' ? 'bg-red-500/5 text-red-600' : 'bg-blue-500/5 text-blue-600'}`}>
-                <span className="text-lg bg-background p-1.5 rounded-full shadow-sm">{e.type === 'attack' ? '⚔️' : '🛡️'}</span>
+              <div key={i} className={`px-5 py-4 text-sm font-medium flex items-center gap-3 ${i > 0 ? 'border-t border-border/50' : ''} 
+                ${e.type === 'attack_opp' ? 'bg-red-500/5 text-red-600' : 
+                  e.type === 'attack_me' ? 'bg-orange-500/5 text-orange-600' : 
+                  e.type === 'shield_me' ? 'bg-green-500/5 text-green-600' : 
+                  'bg-blue-500/5 text-blue-600'}`}>
+                <span className="text-lg bg-background p-1.5 rounded-full shadow-sm">
+                  {e.type.includes('attack') ? '⚔️' : '🛡️'}
+                </span>
                 <span>{e.text}</span>
               </div>
             ))}
