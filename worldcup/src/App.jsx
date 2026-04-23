@@ -12,7 +12,6 @@ import AdminPanel from './pages/admin/AdminPanel';
 import Login from './pages/Login';
 import { AuthProvider } from './lib/AuthContext';
 import WorldCupTable from './components/WorldCupTable';
-import Bracket from './pages/Bracket'; // הייבוא שהוספנו לעץ
 
 export default function App() {
   return (
@@ -31,7 +30,6 @@ export default function App() {
             <Route path="profile" element={<Profile />} />
             <Route path="admin" element={<AdminPanel />} />
             <Route path="world-cup-table" element={<WorldCupTable />} />
-            <Route path="bracket" element={<Bracket />} /> {/* הנתיב שהוספנו לעץ */}
           </Route>
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>

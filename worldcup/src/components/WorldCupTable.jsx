@@ -1,18 +1,25 @@
 import { useState, useEffect } from 'react';
-import { Table, Network } from 'lucide-react';
+import { Table, Network, Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { profilesApi } from '../lib/supabase.js'; // נשתמש בזה רק כדי לוודא חיבור
-// בגלל שאנחנו צריכים שליפה ישירה של משחקים, נייבא את הלקוח המקורי
 import { supabase } from '../lib/supabase.js';
+import MatchCard from '../components/MatchCard';
+
+const ROUNDS = [
+  { id: 'round_32', title: '32 האחרונות' },
+  { id: 'round_16', title: 'שמינית גמר' },
+  { id: 'quarter_final', title: 'רבע גמר' },
+  { id: 'semi_final', title: 'חצי גמר' },
+  { id: 'final', title: 'גמר' }
+];
 
 export function WorldCupTable() {
   const [activeTab, setActiveTab] = useState('groups');
   const [standings, setStandings] = useState({});
+  const [knockoutMatches, setKnockoutMatches] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchAndCalculate() {
-      // מושכים את כל המשחקים (מכל השלבים כרגע, למקרה שהבוט לא סיווג נכון)
       const { data: matches, error } = await supabase
         .from('matches')
         .select('*');
@@ -23,52 +30,47 @@ export function WorldCupTable() {
         return;
       }
 
+      // --- חישוב טבלאות שלב הבתים ---
       const groups = {};
-
-      // סינון למשחקים שיש להם שם בית
       const groupMatches = matches.filter(m => m.group_name && m.group_name.trim() !== '');
 
-      if(groupMatches.length === 0) {
-        setStandings({});
-        setLoading(false);
-        return;
-      }
+      if(groupMatches.length > 0) {
+        groupMatches.forEach(match => {
+          let groupName = match.group_name || 'טרם שובצו';
+          groupName = groupName.replace(/GROUP_/i, 'בית ').replace(/GROUP /i, 'בית ');
 
-      groupMatches.forEach(match => {
-        let groupName = match.group_name || 'טרם שובצו';
-        groupName = groupName.replace(/GROUP_/i, 'בית ').replace(/GROUP /i, 'בית ');
+          if (!groups[groupName]) groups[groupName] = {};
 
-        if (!groups[groupName]) groups[groupName] = {};
+          const home = match.home_team_name;
+          const away = match.away_team_name;
 
-        const home = match.home_team_name;
-        const away = match.away_team_name;
-
-        if (home && !groups[groupName][home]) {
-          groups[groupName][home] = { name: home, flag: match.home_flag, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 };
-        }
-        if (away && !groups[groupName][away]) {
-          groups[groupName][away] = { name: away, flag: match.away_flag, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 };
-        }
-
-        if (match.status === 'finished' || match.status === 'ft' || match.status === 'FINISHED') {
-          const hs = match.home_score || 0;
-          const as = match.away_score || 0;
-
-          if (home) { groups[groupName][home].p += 1; groups[groupName][home].gf += hs; groups[groupName][home].ga += as; }
-          if (away) { groups[groupName][away].p += 1; groups[groupName][away].gf += as; groups[groupName][away].ga += hs; }
-
-          if (hs > as) {
-            if (home) { groups[groupName][home].w += 1; groups[groupName][home].pts += 3; }
-            if (away) { groups[groupName][away].l += 1; }
-          } else if (hs < as) {
-            if (away) { groups[groupName][away].w += 1; groups[groupName][away].pts += 3; }
-            if (home) { groups[groupName][home].l += 1; }
-          } else {
-            if (home) { groups[groupName][home].d += 1; groups[groupName][home].pts += 1; }
-            if (away) { groups[groupName][away].d += 1; groups[groupName][away].pts += 1; }
+          if (home && !groups[groupName][home]) {
+            groups[groupName][home] = { name: home, flag: match.home_flag, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 };
           }
-        }
-      });
+          if (away && !groups[groupName][away]) {
+            groups[groupName][away] = { name: away, flag: match.away_flag, p: 0, w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0 };
+          }
+
+          if (match.status === 'finished' || match.status === 'ft' || match.status === 'FINISHED') {
+            const hs = match.home_score || 0;
+            const as = match.away_score || 0;
+
+            if (home) { groups[groupName][home].p += 1; groups[groupName][home].gf += hs; groups[groupName][home].ga += as; }
+            if (away) { groups[groupName][away].p += 1; groups[groupName][away].gf += as; groups[groupName][away].ga += hs; }
+
+            if (hs > as) {
+              if (home) { groups[groupName][home].w += 1; groups[groupName][home].pts += 3; }
+              if (away) { groups[groupName][away].l += 1; }
+            } else if (hs < as) {
+              if (away) { groups[groupName][away].w += 1; groups[groupName][away].pts += 3; }
+              if (home) { groups[groupName][home].l += 1; }
+            } else {
+              if (home) { groups[groupName][home].d += 1; groups[groupName][home].pts += 1; }
+              if (away) { groups[groupName][away].d += 1; groups[groupName][away].pts += 1; }
+            }
+          }
+        });
+      }
 
       const sortedGroups = {};
       Object.keys(groups).sort().forEach(g => {
@@ -83,6 +85,11 @@ export function WorldCupTable() {
       });
 
       setStandings(sortedGroups);
+
+      // --- סינון משחקי נוקאאוט לפי התגיות החדשות שלנו ---
+      const koMatches = matches.filter(m => ROUNDS.some(r => r.id === m.stage));
+      setKnockoutMatches(koMatches);
+
       setLoading(false);
     }
 
@@ -127,7 +134,6 @@ export function WorldCupTable() {
           ) : Object.keys(standings).length === 0 ? (
             <div className="text-center py-20 bg-card rounded-xl border border-border">
               <p className="text-muted-foreground">עדיין אין נתונים זמינים על בתי הטורניר.</p>
-              <p className="text-xs text-muted-foreground mt-2">(אם הטורניר טרם התחיל, ייתכן שהמידע טרם פורסם ב-API)</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -180,12 +186,49 @@ export function WorldCupTable() {
             </div>
           )
         ) : (
-          <div className="bg-card rounded-xl border border-border p-6 min-h-[400px] flex items-center justify-center">
-            <div className="text-center">
-              <Network size={48} className="mx-auto text-muted-foreground mb-4 opacity-50" />
-              <h2 className="text-xl font-bold mb-2">עץ הנוקאאוט (בבנייה)</h2>
-              <p className="text-muted-foreground">אחרי שנסיים להריץ את הבתים, נבנה כאן את העץ הוויזואלי של הגמר!</p>
-            </div>
+          /* פה העץ מוטמע בתוך הלשונית! */
+          <div className="flex gap-8 overflow-x-auto pb-8 snap-x dir-ltr">
+            {ROUNDS.map((round, index) => {
+              const roundMatches = knockoutMatches.filter(m => m.stage === round.id);
+              
+              if (roundMatches.length === 0 && index !== 0) return null;
+
+              return (
+                <div key={round.id} className="flex flex-col gap-6 min-w-[280px] snap-center">
+                  <div className="bg-muted text-center py-2 rounded-xl border border-border shadow-sm sticky top-0 z-10">
+                    <h3 className="font-black text-sm text-foreground flex items-center justify-center gap-2">
+                      {round.id === 'final' && <Trophy size={16} className="text-yellow-500" />}
+                      {round.title}
+                    </h3>
+                  </div>
+
+                  <div className="flex flex-col gap-4 flex-1 justify-around">
+                    {roundMatches.length > 0 ? (
+                      roundMatches.map((m, i) => (
+                        <motion.div 
+                          key={m.id} 
+                          initial={{ opacity: 0, x: -20 }} 
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.1 }}
+                          className="relative"
+                        >
+                          {index < ROUNDS.length - 1 && (
+                            <div className="absolute top-1/2 -right-4 w-4 h-[2px] bg-border hidden sm:block" />
+                          )}
+                          <div className="dir-rtl">
+                             <MatchCard match={m} compact={true} />
+                          </div>
+                        </motion.div>
+                      ))
+                    ) : (
+                      <div className="bg-card/50 border border-dashed border-border rounded-xl h-24 flex items-center justify-center text-muted-foreground text-xs font-bold">
+                        ממתין למשחקים...
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </motion.div>
