@@ -6,7 +6,7 @@ import { supabase, auth } from '../lib/supabase.js';
 import { toast } from 'sonner';
 import { useAuth } from '../lib/AuthContext';
 
-// רשימת 48 הנבחרות והשחקנים המלאה לפי הבתים שלך
+// רשימת 48 הנבחרות והשחקנים המלאה לפי הבתים של מונדיאל 2026
 export const PLAYERS_BY_TEAM = {
   // בית A
   'מקסיקו': ['סנטיאגו חימנס', 'הירבינג לוסאנו', 'הנרי מרטין', 'חוליאן קיניונס'],
@@ -124,21 +124,27 @@ export function Profile() {
     e.preventDefault();
     setSaving(true);
     try {
-      const { error } = await supabase.from('profiles').upsert({
-        email: user?.email,
-        nickname: form.nickname,
-        favorite_team: form.favorite_team,
-        predicted_winner: form.predicted_winner,
-        predicted_top_scorer: form.predicted_top_scorer,
-        avatar_url: form.avatar_url
-      });
+      // עדכון בטוח לפי אימייל המשתמש
+      const { error } = await supabase.from('profiles')
+        .update({
+          nickname: form.nickname,
+          favorite_team: form.favorite_team,
+          predicted_winner: form.predicted_winner,
+          predicted_top_scorer: form.predicted_top_scorer,
+          avatar_url: form.avatar_url
+        })
+        .eq('email', user?.email);
 
       if (error) throw error;
 
-      setUser(prev => ({ ...prev, ...form }));
+      // רענון הנתונים ב-AuthContext
+      const updated = await auth.me();
+      setUser(updated);
+      
       toast.success('הפרופיל עודכן בהצלחה!');
     } catch (err) {
       toast.error('שגיאה בשמירת הפרופיל');
+      console.error(err);
     } finally {
       setSaving(false);
     }
@@ -146,7 +152,9 @@ export function Profile() {
 
   return (
     <div className="space-y-6 max-w-sm mx-auto pb-12 px-4 pt-6">
-      <h1 className="text-2xl font-black flex items-center gap-2"><User size={24} className="text-primary" />הפרופיל שלי</h1>
+      <h1 className="text-2xl font-black flex items-center gap-2">
+        <User size={24} className="text-primary" />הפרופיל שלי
+      </h1>
       
       <div className="relative w-24 h-24 mx-auto">
         <div className="w-24 h-24 rounded-full bg-primary/10 flex items-center justify-center text-4xl font-black text-primary overflow-hidden border-2 border-primary/20">
@@ -216,7 +224,7 @@ export function Profile() {
 
         <button type="submit" disabled={saving || uploading}
           className="w-full bg-primary text-white rounded-lg py-3 font-black text-sm disabled:opacity-60 hover:shadow-lg transition-all active:scale-[0.98]">
-          {saving ? 'מעדכן פרופיל...' : 'שמור שינויים'}
+          {saving ? 'שומר שינויים...' : 'שמור שינויים'}
         </button>
       </form>
     </div>
