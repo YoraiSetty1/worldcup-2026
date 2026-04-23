@@ -28,14 +28,14 @@ export default function Dashboard() {
     const pointsMap = {};
     allBets.forEach(b => { pointsMap[b.user_email] = (pointsMap[b.user_email] || 0) + (b.points_earned || 0); });
     const lb = profiles
-      .filter(u => u.onboarding_complete)
+      .filter(u => u.onboarding_complete || u.nickname)
       .map(u => ({ ...u, total_points: pointsMap[u.email] || 0 }))
       .sort((a, b) => b.total_points - a.total_points);
     setLeaderboard(lb);
     setLoading(false);
   };
 
-  if (!user?.onboarding_complete) return <Onboarding onComplete={loadData} />;
+  if (!user?.onboarding_complete && !user?.nickname) return <Onboarding onComplete={loadData} />;
 
   const isFinished = (status) => status === 'finished' || status === 'ft' || status === 'FINISHED';
   const now = new Date();
@@ -58,12 +58,25 @@ export default function Dashboard() {
   if (loading) return <div className="flex justify-center py-20"><div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-20">
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         className="bg-gradient-to-l from-primary/90 to-emerald-600/90 rounded-2xl p-6 text-white shadow-lg">
-        <h1 className="text-2xl font-black mb-1">שלום, {user?.nickname || user?.full_name} ⚽</h1>
-        <p className="text-white/80 text-sm">מונדיאל 2026 – בואו נראה מה יש לך!</p>
-        <div className="grid grid-cols-3 gap-3 mt-4">
+        
+        <div className="flex items-center gap-4 mb-4">
+          <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-2xl font-black overflow-hidden border-2 border-white/40 shrink-0 shadow-inner">
+            {user?.avatar_url ? (
+              <img src={user.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              (user?.nickname || user?.full_name || '?')[0].toUpperCase()
+            )}
+          </div>
+          <div>
+            <h1 className="text-2xl font-black mb-1">שלום, {user?.nickname || user?.full_name} ⚽</h1>
+            <p className="text-white/80 text-sm">מונדיאל 2026 – בואו נראה מה יש לך!</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3 mt-2">
           {[
             { Icon: Trophy, val: myPoints, label: 'נקודות' },
             { Icon: Target, val: `#${myRank || '-'}`, label: 'דירוג' },
@@ -116,13 +129,17 @@ export default function Dashboard() {
             return (
               <div key={entry.email} className={`flex items-center justify-between px-4 py-3 ${i > 0 ? 'border-t border-border' : ''} ${entry.email === user?.email ? 'bg-primary/5' : ''}`}>
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
-                    {(entry.nickname || entry.full_name || '?')[0]}
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-black text-primary overflow-hidden border border-primary/20 shrink-0">
+                    {entry.avatar_url ? (
+                      <img src={entry.avatar_url} alt="" className="w-full h-full object-cover" />
+                    ) : (
+                      (entry.nickname || entry.email || '?')[0].toUpperCase()
+                    )}
                   </div>
                   <span className="font-medium text-sm">
                     {i === 0 && <span className="text-yellow-600">👑 </span>}
                     {isLast && <span>🤡 </span>}
-                    {entry.nickname || entry.full_name || entry.email}
+                    {entry.nickname || entry.full_name || entry.email.split('@')[0]}
                   </span>
                 </div>
                 <span className="font-black text-lg text-primary">{entry.total_points}</span>
