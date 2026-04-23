@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { BookOpen, Trophy, Zap, Swords, Clock, ShieldCheck } from 'lucide-react';
+import { BookOpen, Trophy, Zap, Swords, Clock, ShieldCheck, Star } from 'lucide-react';
 
 const RuleSection = ({ icon: Icon, title, children, color }) => (
   <motion.div 
@@ -29,50 +29,84 @@ export default function Rules() {
       </div>
 
       <RuleSection icon={Trophy} title="שיטת הניקוד" color="bg-yellow-500/10 text-yellow-600">
-        <p>על כל משחק שתהמרו עליו, תוכלו לצבור נקודות לפי הדיוק שלכם:</p>
-        <ul className="list-disc list-inside space-y-2">
-          <li><span className="text-foreground font-bold">3 נקודות:</span> פגיעה בתוצאה המדויקת (בול פגיעה!).</li>
-          <li><span className="text-foreground font-bold">1 נקודה:</span> פגיעה בכיוון המשחק (ניצחון/תיקו) אך לא בתוצאה המדויקת.</li>
-          <li><span className="text-foreground font-bold">0 נקודות:</span> טעות מוחלטת בניחוש.</li>
-        </ul>
+        <div className="space-y-4">
+          <div>
+            <h3 className="text-foreground font-black mb-2 flex items-center gap-2">
+              ⚽ שלב הבתים עד רבע הגמר:
+            </h3>
+            <ul className="list-disc list-inside space-y-1 pr-2">
+              <li><span className="text-foreground font-bold">3 נקודות:</span> פגיעה בתוצאה המדויקת.</li>
+              <li><span className="text-foreground font-bold">1 נקודה:</span> פגיעה בכיוון (ניצחון/תיקו).</li>
+            </ul>
+          </div>
+          
+          <div className="bg-primary/5 p-4 rounded-xl border border-primary/20">
+            <h3 className="text-primary font-black mb-2 flex items-center gap-2">
+              🔥 חצי גמר וגמר (ניקוד כפול!):
+            </h3>
+            <ul className="list-disc list-inside space-y-1 pr-2">
+              <li><span className="text-foreground font-bold">6 נקודות:</span> פגיעה בתוצאה המדויקת.</li>
+              <li><span className="text-foreground font-bold">3 נקודות:</span> פגיעה בכיוון (ניצחון/תיקו).</li>
+            </ul>
+          </div>
+        </div>
       </RuleSection>
 
       <RuleSection icon={Zap} title="קלפי תקיפה והגנה" color="bg-purple-500/10 text-purple-600">
-        <p>הקלפים הם הנשק הסודי שלכם. ניתן להשתמש בהם פעם אחת ביום לכל סוג:</p>
-        <div className="grid gap-4 mt-4">
+        <p className="mb-4">הקלפים הם הנשק שלכם. ניתן להשתמש בהם פעם אחת ביום לכל סוג, <span className="text-red-500 font-black underline">אך ורק עד שלב רבע הגמר (כולל)</span>. בחצי הגמר והגמר לא ניתן להשתמש בקלפים!</p>
+        
+        <div className="grid gap-4">
           <div className="bg-muted/50 p-3 rounded-xl border border-border">
             <span className="text-red-600 font-black flex items-center gap-1 mb-1">
-              <Zap size={14} /> היפוך תוצאה (Result Flip)
+              ⚔️ היפוך תוצאה (Result Flip) - תקיפה
             </span>
             הופך את הניחוש של היריב. אם הוא הימר 2-0 לבית, זה הופך ל-2-0 לחוץ.
           </div>
           <div className="bg-muted/50 p-3 rounded-xl border border-border">
             <span className="text-purple-600 font-black flex items-center gap-1 mb-1">
-              <Zap size={14} /> חסימת מדויק (Block Exact)
+              ⚔️ חסימת מדויק (Block Exact) - תקיפה
             </span>
-            גם אם היריב פגע בתוצאה המדויקת, הוא יקבל רק נקודה אחת (של כיוון).
+            מונע מהיריב לקבל ניקוד על תוצאה מדויקת (יקבל רק על כיוון).
           </div>
           <div className="bg-green-500/10 text-green-700 p-3 rounded-xl border border-green-500/20">
             <span className="font-black flex items-center gap-1 mb-1">
-              <ShieldCheck size={14} /> מגן (Shield)
+              🛡️ מגן (Shield) - הגנה
             </span>
-            הקלף היחיד שיכול לבטל תקיפה שבוצעה עליכם. זרקו אותו על המשחק שבו הותקפתם כדי לחזור לניחוש המקורי.
+            הקלף היחיד שמבטל תקיפה שבוצעה עליכם. מחזיר את הניחוש שלכם למקור.
+          </div>
+        </div>
+      </RuleSection>
+
+      <RuleSection icon={Star} title="קלפי בונוס אישיים" color="bg-blue-500/10 text-blue-600">
+        <p>קלפים אלו משפיעים על הניחוש שלכם בלבד ועוזרים לכם למקסם נקודות:</p>
+        <div className="grid gap-4 mt-4">
+          <div className="bg-blue-500/5 p-3 rounded-xl border border-blue-500/20">
+            <span className="text-blue-600 font-black flex items-center gap-1 mb-1">
+              🔄 שינוי תוצאה (Score Change)
+            </span>
+            מאפשר לשנות את ההימור שלכם גם לאחר תחילת המשחק (עד הדקה ה-50).
+          </div>
+          <div className="bg-blue-500/5 p-3 rounded-xl border border-blue-500/20">
+            <span className="text-blue-600 font-black flex items-center gap-1 mb-1">
+              🌍 בלי קשר לקבוצה (Team Agnostic)
+            </span>
+            הניחוש שלכם יתפוס לכל תוצאה! הימרתם 2-1 והמשחק נגמר 2-1 לכל צד? קיבלתם את הניקוד המלא.
           </div>
         </div>
       </RuleSection>
 
       <RuleSection icon={Swords} title="זירת העימות (Arena)" color="bg-red-500/10 text-red-600">
-        <p>מדי יום המערכת מגרילה לכם "יריב יומי" מהקבוצה. העימות נמשך מ-10:00 בבוקר ועד 10:00 בבוקר למחרת.</p>
+        <p>מדי יום המערכת מגרילה לכם "יריב יומי" מהקבוצה.</p>
         <ul className="list-disc list-inside space-y-2">
-          <li>מי שצובר יותר נקודות באותו יום מול היריב שלו, זוכה ב-<span className="text-foreground font-bold">2 נקודות בונוס</span> בטבלה הכללית.</li>
-          <li>ניתן לתקוף בקלפים רק את היריב שמוגרל לכם באותו יום.</li>
+          <li>מי שצובר יותר נקודות באותו יום מול היריב שלו, זוכה ב-<span className="text-foreground font-bold">2 נקודות בונוס</span> בטבלה.</li>
+          <li>התקיפות (היפוך וחסימה) ניתנות לביצוע <span className="font-bold">רק נגד היריב היומי שלכם</span>.</li>
         </ul>
       </RuleSection>
 
-      <RuleSection icon={Clock} title="זמני הימורים" color="bg-blue-500/10 text-blue-600">
+      <RuleSection icon={Clock} title="זמני הימורים" color="bg-orange-500/10 text-orange-600">
         <ul className="list-disc list-inside space-y-2">
-          <li><span className="text-foreground font-bold">נעילת הימורים:</span> לא ניתן לשנות או להזין הימור פחות מ-4 שעות לפני שריקת הפתיחה.</li>
-          <li><span className="text-foreground font-bold">שינוי תוצאה חי:</span> אם יש לכם קלף "שינוי תוצאה", תוכלו להשתמש בו עד לדקה ה-50 של המשחק (למקרה שקלטתם לאן נושבת הרוח).</li>
+          <li><span className="text-foreground font-bold">נעילת הימורים:</span> 4 שעות לפני שריקת הפתיחה (מלבד שימוש בקלף שינוי תוצאה).</li>
+          <li><span className="text-foreground font-bold">סיום קלפים:</span> עם שריקת הסיום של רבע הגמר האחרון, כל הקלפים שנותרו לכם בתיק יימחקו. השתמשו בהם בחוכמה!</li>
         </ul>
       </RuleSection>
 
