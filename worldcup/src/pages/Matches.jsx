@@ -10,7 +10,6 @@ import { toast } from 'sonner';
 
 moment.locale('he');
 
-// פונקציית עזר לטקסט מילולי (העתקנו מ-MatchCard לטובת עקביות)
 const getBetOutcomeText = (homeS, awayS, homeName, awayName) => {
   if (homeS === undefined || awayS === undefined || homeS === '' || awayS === '') return '';
   const max = Math.max(homeS, awayS);
@@ -101,16 +100,13 @@ export default function Matches() {
     setFriendsModalMatch(match);
     setLoadingFriends(true);
     try {
-      // מושכים הימורים, פרופילים, וקלפים כדי לדעת אם חברים תחת מתקפה
       const { data: allBets } = await supabase.from('bets').select('*').eq('match_id', match.id);
       const { data: allProfiles } = await supabase.from('profiles').select('*');
       const { data: allCards } = await supabase.from('user_cards').select('*').eq('used_on_match_id', match.id).eq('is_used', true);
 
       const enrichedBets = (allBets || []).map(b => {
         const profile = (allProfiles || []).find(p => p.email === b.user_email) || {};
-        // האם המשתמש הזה ספציפית תחת התקפת היפוך במשחק הזה?
         const isFlipped = (allCards || []).some(c => c.used_against_email === b.user_email && c.card_type === 'result_flip');
-        // האם יש לו מגן שחוסם את זה?
         const hasShield = (allCards || []).some(c => c.user_email === b.user_email && c.card_type === 'shield');
         
         return { 
@@ -150,15 +146,24 @@ export default function Matches() {
           {dayMatches.map(m => {
             const startTime = moment(m.kickoff_time);
             const now = moment();
+            // בודקים אם קלף שינוי תוצאה פעיל על המשחק הספציפי הזה
             const isScoreChangeActiveForThisMatch = userCards.some(c => c.card_type === 'score_change' && c.is_used && String(c.used_on_match_id) === String(m.id));
+            
             let isLocked = false;
             const status = m.status?.toLowerCase() || 'upcoming';
-            if (['finished', 'ft', 'aet', 'pen'].includes(status)) {
-              isLocked = true;
-            } else if (['1h', 'ht', '2h', 'et', 'p', 'live'].includes(status) || (startTime.diff(now, 'minutes') <= 0)) {
-              isLocked = isScoreChangeActiveForThisMatch ? now.diff(startTime, 'minutes') > 50 : true;
+            const isFinished = ['finished', 'ft', 'aet', 'pen'].includes(status);
+            const isLiveOrStarted = ['1h', 'ht', '2h', 'et', 'p', 'live'].includes(status) || startTime.diff(now, 'minutes') <= 0;
+            const isWithin4Hours = startTime.diff(now, 'minutes') <= 240;
+
+            // הלוגיקה החדשה והחכמה של הנעילות
+            if (isFinished) {
+              isLocked = true; // נגמר זה נגמר
+            } else if (isScoreChangeActiveForThisMatch) {
+              // עקיפה: אם הקלף פעיל, המשחק יינעל רק אם עברה הדקה ה-50
+              isLocked = isLiveOrStarted && now.diff(startTime, 'minutes') > 50;
             } else {
-              isLocked = startTime.diff(now, 'minutes') <= 240;
+              // התנהגות רגילה: ננעל אם התחיל או פחות מ-4 שעות
+              isLocked = isLiveOrStarted || isWithin4Hours;
             }
 
             return (
@@ -170,6 +175,7 @@ export default function Matches() {
                 disabled={isLocked}
                 onViewFriends={openFriendsBets}
                 activeAttack={activeAttacksMap[m.id]}
+                isScoreChangeActive={isScoreChangeActiveForThisMatch} // שולחים לקומפוננטה שהקלף פעיל
               />
             );
           })}
@@ -261,7 +267,6 @@ export default function Matches() {
                               {b.profile?.nickname || b.profile?.full_name || b.user_email.split('@')[0]}
                               {isMe && <span className="mr-1 text-[10px] text-primary">(אתה)</span>}
                             </span>
-                            {/* הטקסט המילולי שהוספנו */}
                             <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
                               {b.isEffectivelyFlipped ? (
                                 <span className="text-red-500 font-bold">הימור הפוך: {getBetOutcomeText(b.away_score, b.home_score, friendsModalMatch.home_team_name, friendsModalMatch.away_team_name)}</span>
