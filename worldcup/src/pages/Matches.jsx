@@ -10,6 +10,17 @@ import { toast } from 'sonner';
 
 moment.locale('he');
 
+// פונקציית העזר לטקסט מילולי ברור
+const getBetOutcomeText = (homeS, awayS, homeName, awayName) => {
+  if (homeS === undefined || awayS === undefined || homeS === '' || awayS === '') return '';
+  const max = Math.max(homeS, awayS);
+  const min = Math.min(homeS, awayS);
+  const scoreTag = <span dir="ltr" className="font-sans font-black inline-block mx-1">{max}-{min}</span>;
+  if (homeS > awayS) return <>{scoreTag} לטובת <span className="font-bold">{homeName}</span></>;
+  if (homeS < awayS) return <>{scoreTag} לטובת <span className="font-bold">{awayName}</span></>;
+  return <>תיקו <span dir="ltr" className="font-sans font-black inline-block ml-1">{homeS}-{awayS}</span></>;
+};
+
 export default function Matches() {
   const { user } = useOutletContext();
   const [matches, setMatches] = useState([]);
@@ -92,10 +103,23 @@ export default function Matches() {
     try {
       const { data: allBets } = await supabase.from('bets').select('*').eq('match_id', match.id);
       const { data: allProfiles } = await supabase.from('profiles').select('*');
+      // שואבים גם את כל הקלפים שהופעלו על המשחק הזה כדי להציג לחברים
+      const { data: allCards } = await supabase.from('user_cards').select('*').eq('used_on_match_id', match.id).eq('is_used', true);
 
       const enrichedBets = (allBets || []).map(b => {
         const profile = (allProfiles || []).find(p => p.email === b.user_email) || {};
-        return { ...b, profile };
+        
+        // לוגיקה של קלפים עבור תצוגת חברים
+        const isFlipped = (allCards || []).some(c => c.used_against_email === b.user_email && c.card_type === 'result_flip');
+        const hasShield = (allCards || []).some(c => c.user_email === b.user_email && c.card_type === 'shield');
+        const isAgnostic = (allCards || []).some(c => c.user_email === b.user_email && c.card_type === 'team_agnostic');
+        
+        return { 
+          ...b, 
+          profile, 
+          isEffectivelyFlipped: isFlipped && !hasShield,
+          isAgnostic 
+        };
       });
 
       setFriendsBetsList(enrichedBets);
@@ -133,7 +157,6 @@ export default function Matches() {
               c.card_type === 'score_change' && c.is_used && String(c.used_on_match_id) === String(m.id)
             );
             
-            // שולפים את המידע האם קלף 'בלי קשר לקבוצה' פעיל
             const isTeamAgnosticActiveForThisMatch = userCards.some(c => 
               c.card_type === 'team_agnostic' && c.is_used && String(c.used_on_match_id) === String(m.id)
             );
@@ -159,7 +182,7 @@ export default function Matches() {
                 onViewFriends={openFriendsBets}
                 activeAttack={activeAttacksMap[m.id]}
                 isScoreChangeActive={isScoreChangeActiveForThisMatch}
-                isTeamAgnosticActive={isTeamAgnosticActiveForThisMatch} // מעבירים את הקלף לכרטיסייה
+                isTeamAgnosticActive={isTeamAgnosticActiveForThisMatch}
               />
             );
           })}
@@ -251,10 +274,24 @@ export default function Matches() {
                               {b.profile?.nickname || b.profile?.full_name || b.user_email.split('@')[0]}
                               {isMe && <span className="mr-1 text-[10px] text-primary">(אתה)</span>}
                             </span>
+                            {/* --- החזרתי את הטקסט המילולי המבוקש --- */}
+                            <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
+                              {b.isEffectivelyFlipped ? (
+                                <span className="text-red-500 font-bold">הימור הפוך: {getBetOutcomeText(b.away_score, b.home_score, friendsModalMatch.home_team_name, friendsModalMatch.away_team_name)}</span>
+                              ) : b.isAgnostic ? (
+                                <span className="text-emerald-600 font-bold">
+                                  <span dir="ltr">{Math.max(b.home_score, b.away_score)}-{Math.min(b.home_score, b.away_score)}</span> לכל צד 🌍
+                                </span>
+                              ) : (
+                                getBetOutcomeText(b.home_score, b.away_score, friendsModalMatch.home_team_name, friendsModalMatch.away_team_name)
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <span className="text-lg font-black tracking-widest">{b.home_score}-{b.away_score}</span>
+                          <span className={`text-lg font-black tracking-widest ${b.isEffectivelyFlipped ? 'text-red-500' : ''}`}>
+                            {b.isEffectivelyFlipped ? `${b.away_score}-${b.home_score}` : `${b.home_score}-${b.away_score}`}
+                          </span>
                           {b.points_earned !== null && b.points_earned !== undefined && (
                             <span className={`text-xs font-black px-2 py-1 rounded-lg ${b.points_earned > 0 ? 'bg-green-500/10 text-green-600' : 'bg-muted text-muted-foreground'}`}>
                               +{b.points_earned}
