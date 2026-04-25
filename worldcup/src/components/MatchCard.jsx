@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Clock, Lock, CheckCircle, Users, RefreshCw, ShieldAlert, Unlock } from 'lucide-react';
+import { Clock, Lock, CheckCircle, Users, RefreshCw, ShieldAlert, Unlock, Globe } from 'lucide-react';
 import moment from 'moment';
 
 const getBetOutcomeText = (homeS, awayS, homeName, awayName) => {
@@ -28,14 +28,13 @@ function isMatchLive(match) {
   return false;
 }
 
-export default function MatchCard({ match, bet, onBet, compact = false, disabled, onViewFriends, activeAttack, isScoreChangeActive }) {
+export default function MatchCard({ match, bet, onBet, compact = false, disabled, onViewFriends, activeAttack, isScoreChangeActive, isTeamAgnosticActive }) {
   const computedLive = isMatchLive(match);
   const isFinished = ['ft', 'aet', 'pen', 'finished'].includes(match.status?.toLowerCase());
   
   const hoursToKickoff = match.kickoff_time ? moment(match.kickoff_time).diff(moment(), 'hours', true) : 0;
   const isBettingLocked = hoursToKickoff <= 4;
   
-  // הדיסאבלד עכשיו נשלט 100% מהאבא (Matches.jsx) שחישב את הקלף!
   const isLocked = disabled !== undefined ? disabled : (isFinished || computedLive || isBettingLocked);
 
   const stageLabels = {
@@ -67,7 +66,7 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-      className={`bg-card rounded-2xl border ${computedLive ? 'border-red-500 shadow-red-500/20 shadow-lg' : activeAttack ? 'border-red-400 shadow-red-500/10 shadow-md' : isScoreChangeActive ? 'border-blue-500 shadow-blue-500/20 shadow-lg' : 'border-border'} overflow-hidden relative transition-all duration-500`}>
+      className={`bg-card rounded-2xl border ${computedLive ? 'border-red-500 shadow-red-500/20 shadow-lg' : activeAttack ? 'border-red-400 shadow-red-500/10 shadow-md' : isScoreChangeActive ? 'border-blue-500 shadow-blue-500/20 shadow-lg' : isTeamAgnosticActive ? 'border-emerald-500 shadow-emerald-500/20 shadow-lg' : 'border-border'} overflow-hidden relative transition-all duration-500`}>
       {computedLive && (
         <div className="absolute top-0 right-0 left-0 h-1.5 bg-red-500 overflow-hidden">
           <motion.div className="h-full bg-red-300" animate={{ x: ['-100%', '100%'] }} transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }} />
@@ -116,13 +115,13 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
                   <input type="number" min="0" max="20"
                     value={bet?.home_score ?? ''}
                     onChange={e => onBet({ ...bet, home_score: parseInt(e.target.value) || 0 })}
-                    className={`w-12 h-12 text-center text-xl font-black rounded-xl border-2 bg-background focus:outline-none transition-all ${isScoreChangeActive ? 'border-blue-400 focus:border-blue-600' : computedLive ? 'border-red-200 focus:border-red-500' : 'border-muted focus:border-primary'}`}
+                    className={`w-12 h-12 text-center text-xl font-black rounded-xl border-2 bg-background focus:outline-none transition-all ${isScoreChangeActive ? 'border-blue-400 focus:border-blue-600' : isTeamAgnosticActive ? 'border-emerald-400 focus:border-emerald-600' : computedLive ? 'border-red-200 focus:border-red-500' : 'border-muted focus:border-primary'}`}
                     placeholder="0" />
                   <span className="text-xl font-black text-muted-foreground">:</span>
                   <input type="number" min="0" max="20"
                     value={bet?.away_score ?? ''}
                     onChange={e => onBet({ ...bet, away_score: parseInt(e.target.value) || 0 })}
-                    className={`w-12 h-12 text-center text-xl font-black rounded-xl border-2 bg-background focus:outline-none transition-all ${isScoreChangeActive ? 'border-blue-400 focus:border-blue-600' : computedLive ? 'border-red-200 focus:border-red-500' : 'border-muted focus:border-primary'}`}
+                    className={`w-12 h-12 text-center text-xl font-black rounded-xl border-2 bg-background focus:outline-none transition-all ${isScoreChangeActive ? 'border-blue-400 focus:border-blue-600' : isTeamAgnosticActive ? 'border-emerald-400 focus:border-emerald-600' : computedLive ? 'border-red-200 focus:border-red-500' : 'border-muted focus:border-primary'}`}
                     placeholder="0" />
                 </div>
               </div>
@@ -135,11 +134,19 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
           </div>
         </div>
 
-        {/* החיווי הויזואלי החדש כשהקלף פעיל והמשחק נפתח */}
+        {/* חיווי ויזואלי לקלף שינוי תוצאה */}
         {isScoreChangeActive && !isLocked && (
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} 
             className="bg-blue-500/10 text-blue-600 border border-blue-500/30 px-3 py-2 rounded-xl flex items-center justify-center gap-2 text-xs font-black w-full mb-3 shadow-sm">
             <Unlock size={16} className="animate-bounce" /> קלף שינוי תוצאה פעיל - ערוך עכשיו!
+          </motion.div>
+        )}
+
+        {/* חיווי ויזואלי לקלף בלי קשר לקבוצה */}
+        {isTeamAgnosticActive && (
+          <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} 
+            className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 px-3 py-2 rounded-xl flex items-center justify-center gap-2 text-xs font-black w-full mb-3 shadow-sm">
+            <Globe size={16} className="animate-pulse" /> קלף 'בלי קשר לקבוצה' מופעל! הניחוש תופס לכל צד.
           </motion.div>
         )}
 
@@ -148,7 +155,8 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
           <div className="flex flex-col mt-2 pt-3 border-t border-dashed border-border gap-2">
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-2 text-xs font-bold text-muted-foreground">
-                <CheckCircle size={14} className={`mt-0.5 shrink-0 ${activeAttack === 'result_flip' ? 'text-red-500' : 'text-primary'}`} />
+                <CheckCircle size={14} className={`mt-0.5 shrink-0 ${activeAttack === 'result_flip' ? 'text-red-500' : isTeamAgnosticActive ? 'text-emerald-500' : 'text-primary'}`} />
+                
                 {activeAttack === 'result_flip' ? (
                   <div className="flex flex-col gap-1">
                     <div className="text-red-500 line-through opacity-70 text-[11px] leading-tight">
@@ -160,7 +168,17 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
                   </div>
                 ) : (
                   <div className="leading-tight">
-                    הניחוש שלך: <span className="text-foreground">{getBetOutcomeText(bet.home_score, bet.away_score, match.home_team_name, match.away_team_name)}</span>
+                    הניחוש שלך: 
+                    {isTeamAgnosticActive && bet.home_score !== undefined ? (
+                      <span className="text-emerald-600 font-bold ml-1 inline-block">
+                        <span dir="ltr" className="font-sans font-black mx-1">{Math.max(bet.home_score, bet.away_score)}-{Math.min(bet.home_score, bet.away_score)}</span>
+                        לכל צד 🌍
+                      </span>
+                    ) : (
+                      <span className="text-foreground mr-1">
+                        {getBetOutcomeText(bet.home_score, bet.away_score, match.home_team_name, match.away_team_name)}
+                      </span>
+                    )}
                   </div>
                 )}
               </div>
