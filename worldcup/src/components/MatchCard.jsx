@@ -124,6 +124,14 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
                     className={`w-12 h-12 text-center text-xl font-black rounded-xl border-2 bg-background focus:outline-none transition-all ${isScoreChangeActive ? 'border-blue-400 focus:border-blue-600' : isTeamAgnosticActive ? 'border-emerald-400 focus:border-emerald-600' : computedLive ? 'border-red-200 focus:border-red-500' : 'border-muted focus:border-primary'}`}
                     placeholder="0" />
                 </div>
+                
+                {/* --- התיקון המבוקש: כפתור חברים שמופיע גם בזמן עריכה/קלף פעיל --- */}
+                <button
+                  onClick={() => onViewFriends && onViewFriends(match)}
+                  className="flex items-center gap-1.5 text-[11px] font-black tracking-wide text-emerald-600 bg-emerald-500/10 hover:bg-emerald-500/20 px-4 py-2 rounded-full transition-all active:scale-95"
+                >
+                  <Users size={14} /> מה החברים שמו?
+                </button>
               </div>
             )}
           </div>
@@ -150,7 +158,6 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
           </motion.div>
         )}
 
-        {/* --- אזור הניחוש והמשפטים המילוליים --- */}
         {bet && (
           <div className="flex flex-col mt-2 pt-3 border-t border-dashed border-border gap-2">
             <div className="flex items-start justify-between">
