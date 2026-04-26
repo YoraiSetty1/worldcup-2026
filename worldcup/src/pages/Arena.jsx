@@ -140,7 +140,7 @@ export default function Arena() {
         </div>
         
         <div className="bg-muted px-6 py-2.5 border-t border-border text-center">
-          <span className="text-[10px] font-black text-foreground flex items-center justify-center gap-1.5"><TrendingUp size={12} className="text-green-500" />העימות פעיל – המנצח גורף 2 נקודות בונוס!</span>
+          <span className="text-[10px] font-black text-foreground flex items-center justify-center gap-1.5"><TrendingUp size={12} className="text-green-500" />העימות פעיל – המנצח גורף נקודת בונוס!</span>
         </div>
       </motion.div>
 
