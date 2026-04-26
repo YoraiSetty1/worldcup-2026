@@ -26,11 +26,11 @@ export function Leaderboard() {
         pointsMap[b.user_email] = (pointsMap[b.user_email] || 0) + (b.points_earned || 0); 
       });
       
-      // התיקון שלך: חישוב נקודות בונוס מניצחונות בזירה (2 נקודות לניצחון)
+      // התיקון המבוקש: חישוב נקודות בונוס מניצחונות בזירה (נקודה 1 בלבד לניצחון)
       if (allMatchups) {
         allMatchups.forEach(m => {
           if (m.winner_email && m.winner_email !== 'tie') {
-            pointsMap[m.winner_email] = (pointsMap[m.winner_email] || 0) + 2;
+            pointsMap[m.winner_email] = (pointsMap[m.winner_email] || 0) + 1; // שינוי מ-2 ל-1
           }
         });
       }
@@ -91,11 +91,11 @@ export function Leaderboard() {
             className={`flex items-center justify-between px-4 py-3.5 ${i > 0 ? 'border-t border-border' : ''} ${entry.email === user?.email ? 'bg-primary/5 border-r-4 border-r-primary' : ''}`}>
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-black text-primary overflow-hidden border border-primary/20 shrink-0">
-                 {entry.avatar_url ? (
-                    <img src={entry.avatar_url} alt="" className="w-full h-full object-cover" />
-                  ) : (
-                    (entry.nickname || entry.email || '?')[0].toUpperCase()
-                  )}
+                  {entry.avatar_url ? (
+                     <img src={entry.avatar_url} alt="" className="w-full h-full object-cover" />
+                   ) : (
+                     (entry.nickname || entry.email || '?')[0].toUpperCase()
+                   )}
               </div>
               <div className="flex flex-col">
                 <span className="font-bold text-sm">
