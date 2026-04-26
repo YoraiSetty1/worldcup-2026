@@ -35,11 +35,15 @@ export default function Dashboard() {
     setMyBets(myBetList);
     
     const pointsMap = {};
+    
+    // חישוב מניחושים
     allBets.forEach(b => { pointsMap[b.user_email] = (pointsMap[b.user_email] || 0) + (b.points_earned || 0); });
+    
+    // התיקון: בונוס מהזירה - נקודה 1 בלבד לכל ניצחון (יישור קו עם ה-Leaderboard)
     if (allMatchups) {
       allMatchups.forEach(m => {
         if (m.winner_email && m.winner_email !== 'tie') {
-          pointsMap[m.winner_email] = (pointsMap[m.winner_email] || 0) + 2;
+          pointsMap[m.winner_email] = (pointsMap[m.winner_email] || 0) + 1;
         }
       });
     }
