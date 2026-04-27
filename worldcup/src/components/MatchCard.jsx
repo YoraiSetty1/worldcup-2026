@@ -35,7 +35,9 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
   const hoursToKickoff = match.kickoff_time ? moment(match.kickoff_time).diff(moment(), 'hours', true) : 0;
   const isBettingLocked = hoursToKickoff <= 4;
   
-  const isLocked = disabled !== undefined ? disabled : (isFinished || computedLive || isBettingLocked);
+  // זה המשתנה שקובע אם הזמן החוקי ננעל (בלי קשר לקלפים)
+  const isTimeLocked = isFinished || computedLive || isBettingLocked;
+  const isLocked = disabled !== undefined ? disabled : isTimeLocked;
 
   const stageLabels = {
     group: `בית ${match.group_letter || ''}`,
@@ -92,47 +94,38 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
 
           <div className="flex flex-col items-center">
             {isLocked ? (
-              <div className="flex flex-col items-center gap-3">
-                <div className="flex flex-col items-center gap-1">
-                  <div className="text-3xl font-black italic tracking-tighter">
-                    {match.home_score ?? 0} : {match.away_score ?? 0}
-                  </div>
-                  <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                    <Lock size={10} /> {isBettingLocked && !isFinished && !computedLive ? 'הימורים ננעלו' : 'הימורים סגורים'}
-                  </div>
+              <div className="flex flex-col items-center gap-1">
+                <div className="text-3xl font-black italic tracking-tighter">
+                  {match.home_score ?? 0} : {match.away_score ?? 0}
                 </div>
-                
-                <button
-                  onClick={() => onViewFriends && onViewFriends(match)}
-                  className="flex items-center gap-1.5 text-[11px] font-black tracking-wide text-primary bg-primary/10 hover:bg-primary/20 px-4 py-2 rounded-full transition-all active:scale-95"
-                >
-                  <Users size={14} /> מה החברים שמו?
-                </button>
+                <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                  <Lock size={10} /> {isBettingLocked && !isFinished && !computedLive ? 'הימורים ננעלו' : 'הימורים סגורים'}
+                </div>
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <input type="number" min="0" max="20"
-                    value={bet?.home_score ?? ''}
-                    onChange={e => onBet({ ...bet, home_score: parseInt(e.target.value) || 0 })}
-                    className={`w-12 h-12 text-center text-xl font-black rounded-xl border-2 bg-background focus:outline-none transition-all ${isScoreChangeActive ? 'border-blue-400 focus:border-blue-600' : isTeamAgnosticActive ? 'border-emerald-400 focus:border-emerald-600' : computedLive ? 'border-red-200 focus:border-red-500' : 'border-muted focus:border-primary'}`}
-                    placeholder="0" />
-                  <span className="text-xl font-black text-muted-foreground">:</span>
-                  <input type="number" min="0" max="20"
-                    value={bet?.away_score ?? ''}
-                    onChange={e => onBet({ ...bet, away_score: parseInt(e.target.value) || 0 })}
-                    className={`w-12 h-12 text-center text-xl font-black rounded-xl border-2 bg-background focus:outline-none transition-all ${isScoreChangeActive ? 'border-blue-400 focus:border-blue-600' : isTeamAgnosticActive ? 'border-emerald-400 focus:border-emerald-600' : computedLive ? 'border-red-200 focus:border-red-500' : 'border-muted focus:border-primary'}`}
-                    placeholder="0" />
-                </div>
-                
-                {/* --- התיקון המבוקש: כפתור חברים שמופיע גם בזמן עריכה/קלף פעיל --- */}
-                <button
-                  onClick={() => onViewFriends && onViewFriends(match)}
-                  className="flex items-center gap-1.5 text-[11px] font-black tracking-wide text-emerald-600 bg-emerald-500/10 hover:bg-emerald-500/20 px-4 py-2 rounded-full transition-all active:scale-95"
-                >
-                  <Users size={14} /> מה החברים שמו?
-                </button>
+              <div className="flex items-center gap-2">
+                <input type="number" min="0" max="20"
+                  value={bet?.home_score ?? ''}
+                  onChange={e => onBet({ ...bet, home_score: parseInt(e.target.value) || 0 })}
+                  className={`w-12 h-12 text-center text-xl font-black rounded-xl border-2 bg-background focus:outline-none transition-all ${isScoreChangeActive ? 'border-blue-400 focus:border-blue-600' : isTeamAgnosticActive ? 'border-emerald-400 focus:border-emerald-600' : computedLive ? 'border-red-200 focus:border-red-500' : 'border-muted focus:border-primary'}`}
+                  placeholder="0" />
+                <span className="text-xl font-black text-muted-foreground">:</span>
+                <input type="number" min="0" max="20"
+                  value={bet?.away_score ?? ''}
+                  onChange={e => onBet({ ...bet, away_score: parseInt(e.target.value) || 0 })}
+                  className={`w-12 h-12 text-center text-xl font-black rounded-xl border-2 bg-background focus:outline-none transition-all ${isScoreChangeActive ? 'border-blue-400 focus:border-blue-600' : isTeamAgnosticActive ? 'border-emerald-400 focus:border-emerald-600' : computedLive ? 'border-red-200 focus:border-red-500' : 'border-muted focus:border-primary'}`}
+                  placeholder="0" />
               </div>
+            )}
+
+            {/* התיקון: כפתור החברים מופיע *אך ורק* אם הזמן החוקי ננעל */}
+            {isTimeLocked && (
+              <button
+                onClick={() => onViewFriends && onViewFriends(match)}
+                className="mt-3 flex items-center gap-1.5 text-[11px] font-black tracking-wide text-emerald-600 bg-emerald-500/10 hover:bg-emerald-500/20 px-4 py-2 rounded-full transition-all active:scale-95"
+              >
+                <Users size={14} /> מה החברים שמו?
+              </button>
             )}
           </div>
 
@@ -142,7 +135,6 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
           </div>
         </div>
 
-        {/* חיווי ויזואלי לקלף שינוי תוצאה */}
         {isScoreChangeActive && !isLocked && (
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} 
             className="bg-blue-500/10 text-blue-600 border border-blue-500/30 px-3 py-2 rounded-xl flex items-center justify-center gap-2 text-xs font-black w-full mb-3 shadow-sm">
@@ -150,7 +142,6 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
           </motion.div>
         )}
 
-        {/* חיווי ויזואלי לקלף בלי קשר לקבוצה */}
         {isTeamAgnosticActive && (
           <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} 
             className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 px-3 py-2 rounded-xl flex items-center justify-center gap-2 text-xs font-black w-full mb-3 shadow-sm">
