@@ -37,8 +37,8 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
   
   const isTimeLocked = isFinished || computedLive || isBettingLocked;
   
-  // התיקון כאן: אם הקלף פעיל, אנחנו עוקפים את הנעילה ומאפשרים עריכה (כל עוד הדיסייבל לא הוזרק מבחוץ)
-  const isLocked = disabled !== undefined ? disabled : (isTimeLocked && !isScoreChangeActive);
+  // זה התיקון האגרסיבי: אם קלף מופעל, פותחים את הנעילה בכוח ומתעלמים מכל הנחיה חיצונית (disabled)
+  const isLocked = isScoreChangeActive ? false : (disabled !== undefined ? disabled : isTimeLocked);
 
   const stageLabels = {
     group: `בית ${match.group_letter || ''}`,
