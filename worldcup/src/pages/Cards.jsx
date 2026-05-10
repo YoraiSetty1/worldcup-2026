@@ -27,6 +27,7 @@ export default function Cards() {
   const [opponentEmail, setOpponentEmail] = useState(null);
   const [upcomingMatches, setUpcomingMatches] = useState([]);
   const [activeAttacks, setActiveAttacks] = useState([]);
+  const [opponentBetMatchIds, setOpponentBetMatchIds] = useState([]);
   const [selectedCard, setSelectedCard] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMatches, setModalMatches] = useState([]);
@@ -37,7 +38,6 @@ export default function Cards() {
     if (!user?.email) return;
     setLoading(true);
     
-    // התיקון הקריטי: שולפים את "היום" בחישוב של מינוס 10 שעות
     const today = moment().subtract(10, 'hours').format('YYYY-MM-DD');
 
     const [myCards, allCards, matchups, allMatches] = await Promise.all([
@@ -65,6 +65,16 @@ export default function Cards() {
     if (myMatchup) {
       const opp = myMatchup.user1_email === user.email ? myMatchup.user2_email : myMatchup.user1_email;
       setOpponentEmail(opp);
+      
+      // התיקון: שולפים את ההימורים של היריב כדי לדעת על מה הוא הימר
+      const { data: oppBets } = await supabase
+        .from('bets')
+        .select('match_id')
+        .eq('user_email', opp);
+        
+      if (oppBets) {
+        setOpponentBetMatchIds(oppBets.map(b => String(b.match_id)));
+      }
       
       const attacksOnMe = allCards.filter(c => 
         c.user_email === opp && c.is_used && c.used_against_email === user.email && ATTACK_CARDS.includes(c.card_type)
@@ -102,10 +112,16 @@ export default function Cards() {
     if (card.is_used) return;
     
     let filtered = upcomingMatches;
+    
     if (card.card_type === 'shield') {
       if (activeAttacks.length === 0) return toast.error('אין התקפות פעילות נגדך! 🛡️');
-      const attackedIds = activeAttacks.map(a => a.used_on_match_id);
-      filtered = upcomingMatches.filter(m => attackedIds.includes(m.id));
+      const attackedIds = activeAttacks.map(a => String(a.used_on_match_id));
+      filtered = upcomingMatches.filter(m => attackedIds.includes(String(m.id)));
+    } else if (ATTACK_CARDS.includes(card.card_type)) {
+      // התיקון: חוסמים התקפה על משחקים שהיריב לא הימר עליהם
+      if (!opponentEmail) return toast.error('אין לך יריב יומי היום! ⚔️');
+      filtered = upcomingMatches.filter(m => opponentBetMatchIds.includes(String(m.id)));
+      if (filtered.length === 0) return toast.error('היריב טרם הזין הימורים על משחקים פתוחים! ⏳');
     }
 
     const available = filtered.filter(m => checkWindow(card.card_type, m.kickoff_time).ok);
