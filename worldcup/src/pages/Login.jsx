@@ -16,7 +16,7 @@ export default function Login() {
   const [predictedTopScorer, setPredictedTopScorer] = useState('');
 
   const [isSignUp, setIsSignUp] = useState(false);
-  const [isForgotPassword, setIsForgotPassword] = useState(false); // הוספנו סטייט לאיפוס סיסמה
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -37,8 +37,8 @@ export default function Login() {
     setLoading(true);
     try {
       if (isForgotPassword) {
-        // לוגיקת איפוס סיסמה בלבד
-        const { error } = await auth.resetPasswordForEmail(email, {
+        // התיקון כאן: שימוש ב-supabase.auth במקום ב-auth המקוסטם
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/login`,
         });
         if (error) throw error;
