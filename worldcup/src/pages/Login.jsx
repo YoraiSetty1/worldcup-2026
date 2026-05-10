@@ -17,12 +17,19 @@ export default function Login() {
 
   const [isSignUp, setIsSignUp] = useState(false);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
-  const [isResettingPassword, setIsResettingPassword] = useState(false); // מצב חדש לעדכון סיסמה
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
-    // בדיקה אם המשתמש כבר מחובר
+    // בדיקת שגיאות מהקישור (כמו קישור פג תוקף)
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    if (hashParams.get('error')) {
+      toast.error('הקישור לא חוקי או שפג תוקפו. אנא בקש קישור חדש.');
+      // מנקה את הכתובת למעלה כדי שהשגיאה לא תקפוץ שוב ברענון
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+
     const checkUser = async () => {
       const { data: { session } } = await auth.getSession();
       if (session && !isResettingPassword) {
@@ -31,7 +38,7 @@ export default function Login() {
     };
     checkUser();
 
-    // האזנה לאירועי התחברות - מזהה כניסה דרך קישור איפול במייל
+    // האזנה לאירועי התחברות - מזהה כניסה דרך קישור איפוס תקין
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'PASSWORD_RECOVERY') {
         setIsResettingPassword(true);
@@ -51,7 +58,7 @@ export default function Login() {
         // עדכון הסיסמה בפועל אחרי שהמשתמש נכנס מהמייל
         const { error } = await supabase.auth.updateUser({ password: password });
         if (error) throw error;
-        toast.success('הסיסמה עודכנה בהצלחה! אתה מחובר.');
+        toast.success('הסיסמה עודכנה בהצלחה! מתחבר...');
         setIsResettingPassword(false);
         navigate('/');
       } else if (isForgotPassword) {
