@@ -16,6 +16,7 @@ export default function Login() {
   const [predictedTopScorer, setPredictedTopScorer] = useState('');
 
   const [isSignUp, setIsSignUp] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -35,91 +36,109 @@ export default function Login() {
     
     setLoading(true);
     try {
-      if (isSignUp) {
+      if (isForgotPassword) {
+        // לוגיקת איפוס סיסמה
+        const { error } = await auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/login`,
+        });
+        if (error) throw error;
+        toast.success('מייל לאיפוס סיסמה נשלח אליך! בדוק את תיבת הדואר.');
+        setIsForgotPassword(false);
+      } else if (isSignUp) {
         // הרשמה למערכת עם שמירת נתוני הפרופיל ל-metadata של המשתמש
-        const { data, error } = await auth.signUp(email, password);
+        const { data, error } = await auth.signUp(email, password, {
+          options: {
+            data: {
+              nickname,
+              favorite_team: favoriteTeam,
+              predicted_winner: predictedWinner,
+              predicted_top_scorer: predictedTopScorer
+            }
+          }
+        });
         if (error) throw error;
-        
-        // ניסיון לשמור את הנתונים הנוספים ישירות לטבלת profiles
-        if (data?.user) {
-          await supabase.from('profiles').upsert({
-            email: email,
-            nickname: nickname || email.split('@')[0],
-            favorite_team: favoriteTeam,
-            predicted_winner: predictedWinner,
-            predicted_top_scorer: predictedTopScorer
-          });
-        }
-
-        toast.success('נרשמת בהצלחה! כנס למייל לאישור.');
+        toast.success('נרשמת בהצלחה! ברוך הבא לטורניר.');
+        navigate('/');
       } else {
-        const { error, data } = await auth.signIn(email, password);
+        // התחברות רגילה
+        const { error } = await auth.signIn(email, password);
         if (error) throw error;
-        
-        if (data?.user || data?.session) {
-          navigate('/', { replace: true });
-        }
+        toast.success('התחברת בהצלחה!');
+        navigate('/');
       }
-    } catch (e) {
-      toast.error(e.message || 'שגיאה בהתחברות/הרשמה');
+    } catch (err) {
+      toast.error(err.message || 'קרתה שגיאה');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8" dir="rtl">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="text-5xl mb-3">⚽</div>
-          <h1 className="text-2xl font-black">מונדיאל 2026</h1>
-          <p className="text-muted-foreground">ברוכים הבאים לארנת ההימורים</p>
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
+      <div className="w-full max-w-md space-y-8 bg-card p-8 rounded-2xl border border-border shadow-xl">
+        <div className="text-center">
+          <h2 className="text-3xl font-black italic tracking-tighter">
+            {isForgotPassword ? 'איפוס סיסמה' : isSignUp ? 'הצטרף לטורניר' : 'ברוך השב'}
+          </h2>
+          <p className="text-muted-foreground text-sm mt-2">
+            {isForgotPassword 
+              ? 'הזן את האימייל שלך ונשלח לך לינק לאיפוס' 
+              : isSignUp 
+              ? 'מלא את הפרטים והתחל להמר' 
+              : 'הזן פרטים כדי להמשיך'}
+          </p>
         </div>
 
-        <form onSubmit={handle} className="space-y-4 bg-card p-6 rounded-2xl border border-border shadow-sm">
-          <h2 className="font-bold text-lg text-center mb-4 border-b border-border pb-2">
-            {isSignUp ? 'יצירת חשבון חדש' : 'כניסה למערכת'}
-          </h2>
-          
-          <div>
-            <label className="text-sm font-medium block mb-1">אימייל</label>
-            <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
-              className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="you@example.com" />
-          </div>
+        <form onSubmit={handle} className="mt-8 space-y-4">
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium block mb-1">אימייל</label>
+              <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
+                className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="you@example.com" />
+            </div>
 
-          <div>
-            <label className="text-sm font-medium block mb-1">סיסמה</label>
-            <input type="password" required value={password} onChange={e => setPassword(e.target.value)}
-              className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="לפחות 6 תווים" />
-          </div>
-
-          {/* שדות שמופיעים רק בהרשמה */}
-          {isSignUp && (
-            <div className="space-y-4 pt-4 border-t border-dashed border-border mt-4">
+            {!isForgotPassword && (
               <div>
-                <label className="text-sm font-medium block mb-1">כינוי</label>
-                <input type="text" required={isSignUp} value={nickname} onChange={e => setNickname(e.target.value)}
+                <label className="text-sm font-medium block mb-1">סיסמה</label>
+                <input type="password" required value={password} onChange={e => setPassword(e.target.value)}
                   className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
-                  placeholder="איך יקראו לך בטורניר?" />
+                  placeholder="••••••••" />
+                
+                {!isSignUp && (
+                  <button type="button" onClick={() => setIsForgotPassword(true)}
+                    className="text-xs text-primary font-bold hover:underline mt-2">
+                    שכחתי סיסמה?
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {isSignUp && (
+            <div className="space-y-4 pt-4 border-t border-border">
+              <div>
+                <label className="text-sm font-medium block mb-1">כינוי (איך נראה אותך בטבלה?)</label>
+                <input type="text" required value={nickname} onChange={e => setNickname(e.target.value)}
+                  className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="למשל: המלך של הזירה" />
               </div>
 
               <div>
-                <label className="text-sm font-medium block mb-1">נבחרת אהובה</label>
+                <label className="text-sm font-medium block mb-1">קבוצה אהודה</label>
                 <select value={favoriteTeam} onChange={e => setFavoriteTeam(e.target.value)}
                   className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary">
-                  <option value="">-- בחר נבחרת --</option>
-                  {TEAMS.map(team => <option key={team} value={team}>{team}</option>)}
+                  <option value="">-- בחר קבוצה --</option>
+                  {TEAMS.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
 
               <div>
-                <label className="text-sm font-medium block mb-1">מנצחת הטורניר (בונוס 10 נק׳)</label>
+                <label className="text-sm font-medium block mb-1">מי תזכה בטורניר? (בונוס 20 נק׳)</label>
                 <select value={predictedWinner} onChange={e => setPredictedWinner(e.target.value)}
                   className="w-full border border-input rounded-lg px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary">
-                  <option value="">-- מי תניף את הגביע? --</option>
-                  {TEAMS.map(team => <option key={team} value={team}>{team}</option>)}
+                  <option value="">-- בחר מנצחת --</option>
+                  {TEAMS.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
 
@@ -140,13 +159,21 @@ export default function Login() {
 
           <button type="submit" disabled={loading}
             className="w-full bg-primary text-primary-foreground rounded-lg py-3 mt-4 font-black text-sm hover:scale-[1.02] transition-transform shadow-md shadow-primary/20 disabled:opacity-60">
-            {loading ? 'טוען...' : isSignUp ? 'הרשם עכשיו!' : 'כניסה'}
+            {loading ? 'טוען...' : isForgotPassword ? 'שלח לינק לאיפוס' : isSignUp ? 'הרשם עכשיו!' : 'כניסה'}
           </button>
 
-          <button type="button" onClick={() => setIsSignUp(o => !o)}
-            className="w-full text-sm text-muted-foreground hover:text-foreground text-center mt-2">
-            {isSignUp ? 'כבר יש לי חשבון ← כניסה' : 'אין לך חשבון? בוא להירשם'}
-          </button>
+          <div className="flex flex-col gap-2 mt-4">
+            <button type="button" onClick={() => {
+              if (isForgotPassword) {
+                setIsForgotPassword(false);
+              } else {
+                setIsSignUp(o => !o);
+              }
+            }}
+              className="w-full text-sm text-muted-foreground hover:text-foreground text-center">
+              {isForgotPassword ? '← חזרה להתחברות' : isSignUp ? 'כבר יש לי חשבון ← כניסה' : 'אין לך חשבון? הרשם כאן'}
+            </button>
+          </div>
         </form>
       </div>
     </div>
