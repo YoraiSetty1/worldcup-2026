@@ -35,9 +35,10 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
   const hoursToKickoff = match.kickoff_time ? moment(match.kickoff_time).diff(moment(), 'hours', true) : 0;
   const isBettingLocked = hoursToKickoff <= 4;
   
-  // זה המשתנה שקובע אם הזמן החוקי ננעל (בלי קשר לקלפים)
   const isTimeLocked = isFinished || computedLive || isBettingLocked;
-  const isLocked = disabled !== undefined ? disabled : isTimeLocked;
+  
+  // התיקון כאן: אם הקלף פעיל, אנחנו עוקפים את הנעילה ומאפשרים עריכה (כל עוד הדיסייבל לא הוזרק מבחוץ)
+  const isLocked = disabled !== undefined ? disabled : (isTimeLocked && !isScoreChangeActive);
 
   const stageLabels = {
     group: `בית ${match.group_letter || ''}`,
@@ -118,7 +119,6 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
               </div>
             )}
 
-            {/* התיקון: כפתור החברים מופיע *אך ורק* אם הזמן החוקי ננעל */}
             {isTimeLocked && (
               <button
                 onClick={() => onViewFriends && onViewFriends(match)}
