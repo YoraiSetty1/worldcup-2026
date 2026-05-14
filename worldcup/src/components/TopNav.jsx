@@ -1,18 +1,19 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { Trophy, Calendar, Swords, CreditCard, MessageCircle, User, Shield, Menu, X, Table, BookOpen } from 'lucide-react';
+import { Trophy, Calendar, Swords, CreditCard, MessageCircle, User, Shield, Menu, X, Table, BookOpen, Sparkles } from 'lucide-react';
 import { auth } from '../lib/supabase.js';
 import { useAuth } from '../lib/AuthContext';
 
 const NAV_ITEMS = [
   { to: '/', icon: Trophy, label: 'בית' },
   { to: '/matches', icon: Calendar, label: 'משחקים' },
-  { to: '/world-cup-table', icon: Table, label: 'טבלת המונדיאל' },
+  { to: '/world-cup-table', icon: Table, label: 'טבלה' },
   { to: '/leaderboard', icon: Trophy, label: 'דירוג' },
   { to: '/arena', icon: Swords, label: 'זירה' },
   { to: '/cards', icon: CreditCard, label: 'קלפים' },
   { to: '/chat', icon: MessageCircle, label: 'צ\'אט' },
   { to: '/rules', icon: BookOpen, label: 'חוקים' },
+  { to: '/oracle', icon: Sparkles, label: 'אורקל' }, // <--- האורקל פה!
   { to: '/profile', icon: User, label: 'פרופיל' },
 ];
 
@@ -102,7 +103,7 @@ export default function TopNav({ user }) {
         )}
       </nav>
 
-      {/* Mobile bottom nav */}
+      {/* Mobile bottom nav - limited to 5 main items */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t border-border flex">
         {NAV_ITEMS.slice(0, 5).map(({ to, icon: Icon, label }) => (
           <Link

@@ -12,7 +12,8 @@ import AdminPanel from './pages/admin/AdminPanel';
 import Login from './pages/Login';
 import { AuthProvider } from './lib/AuthContext';
 import WorldCupTable from './components/WorldCupTable';
-import Rules from './pages/Rules'; // הייבוא החדש
+import Rules from './pages/Rules'; 
+import Oracle from './pages/Oracle'; // <--- הוספנו את האורקל
 
 export default function App() {
   return (
@@ -24,14 +25,15 @@ export default function App() {
           <Route path="/" element={<Layout />}>
             <Route index element={<Dashboard />} />
             <Route path="matches" element={<Matches />} />
-            <Route path="leaderboard" element={<Leaderboard />} />
-            <Route path="cards" element={<Cards />} />
-            <Route path="arena" element={<Arena />} />
-            <Route path="chat" element={<Chat />} />
-            <Route path="profile" element={<Profile />} />
-            <Route path="admin" element={<AdminPanel />} />
             <Route path="world-cup-table" element={<WorldCupTable />} />
-            <Route path="rules" element={<Rules />} /> {/* הנתיב החדש */}
+            <Route path="leaderboard" element={<Leaderboard />} />
+            <Route path="arena" element={<Arena />} />
+            <Route path="cards" element={<Cards />} />
+            <Route path="chat" element={<Chat />} />
+            <Route path="rules" element={<Rules />} />
+            <Route path="profile" element={<Profile />} />
+            <Route path="oracle" element={<Oracle />} /> {/* <--- נתיב חדש */}
+            <Route path="admin" element={<AdminPanel />} />
           </Route>
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
