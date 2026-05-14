@@ -9,7 +9,7 @@ export function Leaderboard() {
   const { user } = useOutletContext();
   const [leaderboard, setLeaderboard] = useState([]);
   const [allBets, setAllBets] = useState([]);
-  const [matchups, setMatchups] = useState([]); // שומרים את העימותים בסטייט
+  const [matchups, setMatchups] = useState([]); 
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedProfile, setSelectedProfile] = useState(null);
@@ -19,7 +19,7 @@ export function Leaderboard() {
       const [profiles, fetchedBets, { data: allMatchups }, { data: fetchedMatches }] = await Promise.all([
         profilesApi.list(), 
         betsApi.listAll(),
-        supabase.from('daily_matchups').select('*'), // שולפים את כל נתוני העימות
+        supabase.from('daily_matchups').select('*'), 
         supabase.from('matches').select('*')
       ]);
       
@@ -72,7 +72,7 @@ export function Leaderboard() {
     <div className="space-y-4 pb-20 relative">
       <h1 className="text-2xl font-black flex items-center gap-2"><Trophy className="text-secondary" size={24} />טבלת המובילים</h1>
 
-      {/* Top 3 UI - נשאר כפי שהיה */}
+      {/* Top 3 UI */}
       {leaderboard.length >= 3 && (
         <div className="flex items-end justify-center gap-3 py-4">
           {[1, 0, 2].map(idx => {
@@ -158,6 +158,9 @@ export function Leaderboard() {
                     return myMatchups.map(m => {
                       const opponentEmail = m.user1_email === selectedProfile.email ? m.user2_email : m.user1_email;
                       const opponent = leaderboard.find(p => p.email === opponentEmail);
+                      
+                      // התיקון של הבאג: הוספת זיהוי למצב ממתין
+                      const isPending = !m.winner_email; 
                       const isWin = m.winner_email === selectedProfile.email;
                       const isTie = m.winner_email === 'tie';
 
@@ -168,10 +171,10 @@ export function Leaderboard() {
                             <span className="font-bold italic">נגד {opponent?.nickname || opponentEmail.split('@')[0]}</span>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span className={`font-black ${isWin ? 'text-emerald-500' : isTie ? 'text-blue-500' : 'text-red-500'}`}>
-                              {isWin ? 'ניצחון' : isTie ? 'תיקו' : 'הפסד'}
+                            <span className={`font-black ${isPending ? 'text-yellow-500' : isWin ? 'text-emerald-500' : isTie ? 'text-blue-500' : 'text-red-500'}`}>
+                              {isPending ? 'ממתין' : isWin ? 'ניצחון' : isTie ? 'תיקו' : 'הפסד'}
                             </span>
-                            <span className="bg-muted px-2 py-1 rounded font-black">+{isWin ? 1 : 0}</span>
+                            <span className="bg-muted px-2 py-1 rounded font-black">{isPending ? '-' : `+${isWin ? 1 : 0}`}</span>
                           </div>
                         </div>
                       );
