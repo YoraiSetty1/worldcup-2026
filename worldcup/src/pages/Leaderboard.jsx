@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Trophy, Crown, Medal, X, Star, Target, Swords } from 'lucide-react';
+import { Trophy, Crown, Medal, X, Star, Target, Swords, RefreshCw } from 'lucide-react';
 import { profilesApi, betsApi, supabase } from '../lib/supabase.js';
 import moment from 'moment';
 
@@ -12,10 +12,33 @@ export function Leaderboard() {
   const [matchups, setMatchups] = useState([]); 
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState(null);
 
-  useEffect(() => {
-    (async () => {
+  const loadData = async (forceRefresh = false) => {
+    const CACHE_KEY = 'leaderboard_cache_v1';
+    const CACHE_TIME = 1000 * 60 * 5; // 5 דקות של זיכרון מטמון
+
+    // אם לא הכרחנו רענון, נבדוק קודם אם יש נתונים טריים בזיכרון
+    if (!forceRefresh) {
+      const cachedString = sessionStorage.getItem(CACHE_KEY);
+      if (cachedString) {
+        const cached = JSON.parse(cachedString);
+        if (Date.now() - cached.timestamp < CACHE_TIME) {
+          setAllBets(cached.data.allBets);
+          setMatches(cached.data.matches);
+          setMatchups(cached.data.matchups);
+          setLeaderboard(cached.data.leaderboard);
+          setLoading(false);
+          return;
+        }
+      }
+    }
+
+    setIsRefreshing(true);
+    if (!forceRefresh) setLoading(true);
+
+    try {
       const [profiles, fetchedBets, { data: allMatchups }, { data: fetchedMatches }] = await Promise.all([
         profilesApi.list(), 
         betsApi.listAll(),
@@ -23,33 +46,49 @@ export function Leaderboard() {
         supabase.from('matches').select('*')
       ]);
       
-      setAllBets(fetchedBets || []);
-      setMatches(fetchedMatches || []);
-      setMatchups(allMatchups || []);
+      const allBetsData = fetchedBets || [];
+      const matchesData = fetchedMatches || [];
+      const matchupsData = allMatchups || [];
 
       const pointsMap = {};
       
       // חישוב נקודות מהימורים
-      (fetchedBets || []).forEach(b => { 
+      allBetsData.forEach(b => { 
         pointsMap[b.user_email] = (pointsMap[b.user_email] || 0) + (b.points_earned || 0); 
       });
       
       // חישוב נקודות מהזירה
-      if (allMatchups) {
-        allMatchups.forEach(m => {
-          if (m.winner_email && m.winner_email !== 'tie') {
-            pointsMap[m.winner_email] = (pointsMap[m.winner_email] || 0) + 1;
-          }
-        });
-      }
+      matchupsData.forEach(m => {
+        if (m.winner_email && m.winner_email !== 'tie') {
+          pointsMap[m.winner_email] = (pointsMap[m.winner_email] || 0) + 1;
+        }
+      });
 
       const lb = profiles.filter(u => u.onboarding_complete || u.nickname)
         .map(u => ({ ...u, total_points: pointsMap[u.email] || 0 }))
         .sort((a, b) => b.total_points - a.total_points);
         
+      setAllBets(allBetsData);
+      setMatches(matchesData);
+      setMatchups(matchupsData);
       setLeaderboard(lb);
+
+      // שומרים את הנתונים החדשים בזיכרון המטמון של הדפדפן
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+        timestamp: Date.now(),
+        data: { allBets: allBetsData, matches: matchesData, matchups: matchupsData, leaderboard: lb }
+      }));
+
+    } catch (err) {
+      console.error('Error fetching leaderboard data:', err);
+    } finally {
       setLoading(false);
-    })();
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
   }, []);
 
   const RANK_STYLES = [
@@ -70,7 +109,13 @@ export function Leaderboard() {
 
   return (
     <div className="space-y-4 pb-20 relative">
-      <h1 className="text-2xl font-black flex items-center gap-2"><Trophy className="text-secondary" size={24} />טבלת המובילים</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-black flex items-center gap-2"><Trophy className="text-secondary" size={24} />טבלת המובילים</h1>
+        {/* כפתור הרענון החדש - כופה משיכת נתונים חדשים ועוקף את המטמון */}
+        <button onClick={() => loadData(true)} disabled={isRefreshing} className="p-2 bg-muted rounded-full hover:bg-muted/80 transition-colors disabled:opacity-50">
+          <RefreshCw size={18} className={`text-muted-foreground ${isRefreshing ? 'animate-spin' : ''}`} />
+        </button>
+      </div>
 
       {/* Top 3 UI */}
       {leaderboard.length >= 3 && (
@@ -125,7 +170,7 @@ export function Leaderboard() {
             className="bg-card w-full max-w-md rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
             
             <div className="bg-primary p-5 text-primary-foreground relative flex items-center gap-4">
-              <button onClick={() => setSelectedProfile(null)} className="absolute top-4 left-4 bg-black/20 p-2 rounded-full"><X size={18} /></button>
+              <button onClick={() => setSelectedProfile(null)} className="absolute top-4 left-4 bg-black/20 p-2 rounded-full hover:bg-black/40"><X size={18} /></button>
               <div className="w-14 h-14 rounded-full bg-white/20 border-2 border-white/50 flex items-center justify-center text-xl font-black shrink-0 overflow-hidden">
                  {selectedProfile.avatar_url ? <img src={selectedProfile.avatar_url} className="w-full h-full object-cover" /> : (selectedProfile.nickname || '?')[0].toUpperCase()}
               </div>
@@ -159,7 +204,6 @@ export function Leaderboard() {
                       const opponentEmail = m.user1_email === selectedProfile.email ? m.user2_email : m.user1_email;
                       const opponent = leaderboard.find(p => p.email === opponentEmail);
                       
-                      // התיקון של הבאג: הוספת זיהוי למצב ממתין
                       const isPending = !m.winner_email; 
                       const isWin = m.winner_email === selectedProfile.email;
                       const isTie = m.winner_email === 'tie';
