@@ -1,4 +1,3 @@
-// Cards.jsx
 import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Shield, Zap, RefreshCw, Star, Lock, X, Clock, AlertTriangle } from 'lucide-react';
@@ -56,9 +55,11 @@ export default function Cards() {
 
     const now = moment();
     const tomorrow = moment().add(24, 'hours');
+    
+    // סינון של משחקים רלוונטיים לפי הסטטוסים החדשים
     setUpcomingMatches(allMatches.filter(m => 
       moment(m.kickoff_time).isBetween(now.clone().subtract(1, 'hour'), tomorrow) &&
-      !['finished', 'ft', 'aet', 'pen'].includes(m.status?.toLowerCase())
+      !['FINISHED', 'AWARDED', 'CANCELLED'].includes(m.status?.toUpperCase())
     ).sort((a, b) => new Date(a.kickoff_time) - new Date(b.kickoff_time)));
 
     const myMatchup = matchups.find(m => m.user1_email === user.email || m.user2_email === user.email);
@@ -66,12 +67,7 @@ export default function Cards() {
       const opp = myMatchup.user1_email === user.email ? myMatchup.user2_email : myMatchup.user1_email;
       setOpponentEmail(opp);
       
-      // התיקון: שולפים את ההימורים של היריב כדי לדעת על מה הוא הימר
-      const { data: oppBets } = await supabase
-        .from('bets')
-        .select('match_id')
-        .eq('user_email', opp);
-        
+      const { data: oppBets } = await supabase.from('bets').select('match_id').eq('user_email', opp);
       if (oppBets) {
         setOpponentBetMatchIds(oppBets.map(b => String(b.match_id)));
       }
@@ -85,11 +81,12 @@ export default function Cards() {
     setLoading(false);
   };
 
-  const checkWindow = (cardType, matchTime) => {
+  const checkWindow = (cardType, match) => {
     const now = moment();
-    const start = moment(matchTime);
+    const start = moment(match.kickoff_time);
     const diffHours = start.diff(now, 'hours', true); 
     const diffMinutes = now.diff(start, 'minutes');    
+    const status = match.status?.toUpperCase() || 'SCHEDULED';
 
     if (ATTACK_CARDS.includes(cardType)) {
       if (diffHours > 4) return { ok: false, msg: 'מוקדם מדי! התקפה מתחילה רק עם נעילת ההימורים (4 שעות לפני).' };
@@ -102,7 +99,10 @@ export default function Cards() {
 
     if (cardType === 'score_change') {
       if (diffHours > 4) return { ok: false, msg: 'הקלף ייפתח לשימוש רק לאחר נעילת ההימורים (4 שעות לפני המשחק).' };
-      if (diffMinutes > 50) return { ok: false, msg: 'עברו 50 דקות מתחילת המשחק - הקלף ננעל.' };
+      if (['PAUSED', 'FINISHED', 'AWARDED', 'CANCELLED'].includes(status)) {
+        return { ok: false, msg: 'מאוחר מדי! לא ניתן להפעיל קלף שינוי בהפסקת המחצית או אחריה.' };
+      }
+      if (diffMinutes > 50) return { ok: false, msg: 'עברו 50 דקות משעת הבעיטה הרשמית - הקלף ננעל סופית.' };
     }
     
     return { ok: true };
@@ -118,18 +118,17 @@ export default function Cards() {
       const attackedIds = activeAttacks.map(a => String(a.used_on_match_id));
       filtered = upcomingMatches.filter(m => attackedIds.includes(String(m.id)));
     } else if (ATTACK_CARDS.includes(card.card_type)) {
-      // התיקון: חוסמים התקפה על משחקים שהיריב לא הימר עליהם
       if (!opponentEmail) return toast.error('אין לך יריב יומי היום! ⚔️');
       filtered = upcomingMatches.filter(m => opponentBetMatchIds.includes(String(m.id)));
       if (filtered.length === 0) return toast.error('היריב טרם הזין הימורים על משחקים פתוחים! ⏳');
     }
 
-    const available = filtered.filter(m => checkWindow(card.card_type, m.kickoff_time).ok);
+    const available = filtered.filter(m => checkWindow(card.card_type, m).ok);
     
     if (available.length === 0) {
       const firstMatch = filtered[0];
       if (firstMatch) {
-        const reason = checkWindow(card.card_type, firstMatch.kickoff_time).msg;
+        const reason = checkWindow(card.card_type, firstMatch).msg;
         return toast.error(reason);
       }
       return toast.error('אין משחקים זמינים בחלון הזמן של קלף זה');
@@ -141,7 +140,7 @@ export default function Cards() {
   };
 
   const confirmCardUse = async (match) => {
-    const win = checkWindow(selectedCard.card_type, match.kickoff_time);
+    const win = checkWindow(selectedCard.card_type, match);
     if (!win.ok) return toast.error(win.msg);
 
     setIsModalOpen(false);

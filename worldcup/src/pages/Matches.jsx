@@ -10,7 +10,6 @@ import { toast } from 'sonner';
 
 moment.locale('he');
 
-// פונקציית העזר לטקסט מילולי ברור
 const getBetOutcomeText = (homeS, awayS, homeName, awayName) => {
   if (homeS === undefined || awayS === undefined || homeS === '' || awayS === '') return '';
   const max = Math.max(homeS, awayS);
@@ -103,13 +102,10 @@ export default function Matches() {
     try {
       const { data: allBets } = await supabase.from('bets').select('*').eq('match_id', match.id);
       const { data: allProfiles } = await supabase.from('profiles').select('*');
-      // שואבים גם את כל הקלפים שהופעלו על המשחק הזה כדי להציג לחברים
       const { data: allCards } = await supabase.from('user_cards').select('*').eq('used_on_match_id', match.id).eq('is_used', true);
 
       const enrichedBets = (allBets || []).map(b => {
         const profile = (allProfiles || []).find(p => p.email === b.user_email) || {};
-        
-        // לוגיקה של קלפים עבור תצוגת חברים
         const isFlipped = (allCards || []).some(c => c.used_against_email === b.user_email && c.card_type === 'result_flip');
         const hasShield = (allCards || []).some(c => c.user_email === b.user_email && c.card_type === 'shield');
         const isAgnostic = (allCards || []).some(c => c.user_email === b.user_email && c.card_type === 'team_agnostic');
@@ -162,11 +158,14 @@ export default function Matches() {
             );
 
             let isLocked = false;
-            const status = m.status?.toLowerCase() || 'upcoming';
+            const status = m.status?.toUpperCase() || 'SCHEDULED';
 
-            if (['finished', 'ft', 'aet', 'pen'].includes(status)) {
+            if (['FINISHED', 'AWARDED', 'CANCELLED'].includes(status)) {
               isLocked = true;
-            } else if (['1h', 'ht', '2h', 'et', 'p', 'live'].includes(status) || (startTime.diff(now, 'minutes') <= 0)) {
+            } else if (['PAUSED'].includes(status)) {
+              isLocked = true; // חסימה טוטאלית במחצית
+            } else if (['IN_PLAY'].includes(status) || (startTime.diff(now, 'minutes') <= 0)) {
+              // חסימה מתמטית: אם עברו 50 דקות, חותכים עניין
               isLocked = isScoreChangeActiveForThisMatch ? now.diff(startTime, 'minutes') > 50 : true;
             } else {
               isLocked = startTime.diff(now, 'minutes') <= 240;
@@ -194,8 +193,8 @@ export default function Matches() {
   if (loading) return <div className="p-8 text-center animate-pulse font-black text-muted-foreground">טוען משחקים...</div>;
 
   const filteredMatches = matches.filter(m => (tab === 'group' ? m.stage === 'group' : m.stage !== 'group'));
-  const upcoming = filteredMatches.filter(m => !['finished', 'ft', 'aet', 'pen'].includes(m.status?.toLowerCase()));
-  const finished = filteredMatches.filter(m => ['finished', 'ft', 'aet', 'pen'].includes(m.status?.toLowerCase()));
+  const upcoming = filteredMatches.filter(m => !['FINISHED', 'AWARDED', 'CANCELLED'].includes(m.status?.toUpperCase()));
+  const finished = filteredMatches.filter(m => ['FINISHED', 'AWARDED', 'CANCELLED'].includes(m.status?.toUpperCase()));
 
   return (
     <div className="max-w-2xl mx-auto pb-24 px-4 pt-4 relative">
@@ -239,7 +238,7 @@ export default function Matches() {
             <div className="p-4 bg-muted/50 border-b border-border flex justify-between items-center">
               <h3 className="font-black text-lg flex items-center gap-2">
                 <Users className="text-primary" size={20} />
-                הימורי חברים
+                הימורי משתתפים
               </h3>
               <button onClick={() => setFriendsModalMatch(null)} className="p-1.5 hover:bg-muted-foreground/20 rounded-xl transition-colors">
                 <X size={20} />
@@ -274,7 +273,6 @@ export default function Matches() {
                               {b.profile?.nickname || b.profile?.full_name || b.user_email.split('@')[0]}
                               {isMe && <span className="mr-1 text-[10px] text-primary">(אתה)</span>}
                             </span>
-                            {/* --- החזרתי את הטקסט המילולי המבוקש --- */}
                             <div className="text-[10px] text-muted-foreground mt-0.5 leading-tight">
                               {b.isEffectivelyFlipped ? (
                                 <span className="text-red-500 font-bold">הימור הפוך: {getBetOutcomeText(b.away_score, b.home_score, friendsModalMatch.home_team_name, friendsModalMatch.away_team_name)}</span>
