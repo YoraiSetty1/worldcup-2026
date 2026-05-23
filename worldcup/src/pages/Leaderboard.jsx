@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Trophy, Crown, Medal, X, Star, Target, Swords, RefreshCw } from 'lucide-react';
-import { profilesApi, betsApi, supabase } from '../lib/supabase.js';
+import { betsApi, supabase } from '../lib/supabase.js';
 import moment from 'moment';
 
 export function Leaderboard() {
@@ -19,7 +19,6 @@ export function Leaderboard() {
     const CACHE_KEY = 'leaderboard_cache_v1';
     const CACHE_TIME = 1000 * 60 * 5; // 5 דקות של זיכרון מטמון
 
-    // אם לא הכרחנו רענון, נבדוק קודם אם יש נתונים טריים בזיכרון
     if (!forceRefresh) {
       const cachedString = sessionStorage.getItem(CACHE_KEY);
       if (cachedString) {
@@ -39,41 +38,103 @@ export function Leaderboard() {
     if (!forceRefresh) setLoading(true);
 
     try {
-      const [profiles, fetchedBets, { data: allMatchups }, { data: fetchedMatches }] = await Promise.all([
-        profilesApi.list(), 
+      // משיכת נתונים מרוכזת מתוך ה-View החדש בשרת
+      const [{ data: viewData }, fetchedBets, { data: allMatchups }, { data: fetchedMatches }] = await Promise.all([
+        supabase.from('leaderboard_view').select('*'), 
         betsApi.listAll(),
         supabase.from('daily_matchups').select('*'), 
         supabase.from('matches').select('*')
       ]);
       
+      const leaderboardData = viewData || [];
       const allBetsData = fetchedBets || [];
       const matchesData = fetchedMatches || [];
       const matchupsData = allMatchups || [];
 
-      const pointsMap = {};
-      
-      // חישוב נקודות מהימורים
-      allBetsData.forEach(b => { 
-        pointsMap[b.user_email] = (pointsMap[b.user_email] || 0) + (b.points_earned || 0); 
-      });
-      
-      // חישוב נקודות מהזירה
-      matchupsData.forEach(m => {
-        if (m.winner_email && m.winner_email !== 'tie') {
-          pointsMap[m.winner_email] = (pointsMap[m.winner_email] || 0) + 1;
-        }
-      });
+      // בדיקה האם הטורניר נגמר לחלוטין (כל המשחקים הקיימים עומדים על סטטוס סופי)
+      const isTournamentFinished = matchesData.length > 0 && matchesData.every(m => 
+        ['ft', 'aet', 'pen', 'finished'].includes(m.status?.toLowerCase())
+      );
 
-      const lb = profiles.filter(u => u.onboarding_complete || u.nickname)
-        .map(u => ({ ...u, total_points: pointsMap[u.email] || 0 }))
-        .sort((a, b) => b.total_points - a.total_points);
+      const lb = leaderboardData.filter(u => u.onboarding_complete || u.nickname)
+        .map(u => ({ 
+          ...u, 
+          tieBreakerNote: '', 
+          tieBreakerType: '' 
+        }))
+        .sort((a, b) => {
+          // חוק 1: נקודות כלליות (מגיע מחושב מהשרת)
+          if (b.total_points !== a.total_points) {
+            return b.total_points - a.total_points;
+          }
+
+          // חוק 2: כמות הימורים מדויקים (מגיע מחושב מהשרת)
+          if (b.exact_hits !== a.exact_hits) {
+            return b.exact_hits - a.exact_hits;
+          }
+
+          // חוק 3: מי ניצח יותר עימותים יומיים ביניהם (ראש בראש)
+          const directMatchups = matchupsData.filter(m => 
+            m.status?.toLowerCase() === 'finished' && (
+              (m.user1_email === a.email && m.user2_email === b.email) ||
+              (m.user1_email === b.email && m.user2_email === a.email)
+            )
+          );
+
+          let aWins = 0;
+          let bWins = 0;
+          directMatchups.forEach(m => {
+            if (m.winner_email === a.email) aWins++;
+            if (m.winner_email === b.email) bWins++;
+          });
+
+          if (bWins !== aWins) {
+            return bWins - aWins;
+          }
+
+          return 0; // תיקו מוחלט
+        });
+
+      // הצמדת הודעות שוברי השוויון - קורה אך ורק אם הטורניר הסתיים במלואו
+      if (isTournamentFinished) {
+        for (let i = 0; i < lb.length - 1; i++) {
+          const current = lb[i];
+          const next = lb[i + 1];
+          
+          if (current.total_points === next.total_points) {
+            if (current.exact_hits > next.exact_hits) {
+              current.tieBreakerNote = 'יותר הימורים מדוייקים';
+              current.tieBreakerType = 'exact';
+            } else {
+              // בדיקת היסטוריית מפגשים ישירים לצורך קביעת התווית הוויזואלית
+              const directMatchups = matchupsData.filter(m => 
+                m.status?.toLowerCase() === 'finished' && (
+                  (m.user1_email === current.email && m.user2_email === next.email) ||
+                  (m.user1_email === next.email && m.user2_email === current.email)
+                )
+              );
+              
+              let currentWins = 0;
+              let nextWins = 0;
+              directMatchups.forEach(m => {
+                if (m.winner_email === current.email) currentWins++;
+                if (m.winner_email === next.email) nextWins++;
+              });
+              
+              if (currentWins > nextWins) {
+                current.tieBreakerNote = 'יותר ניצחונות בעימותים';
+                current.tieBreakerType = 'h2h';
+              }
+            }
+          }
+        }
+      }
         
       setAllBets(allBetsData);
       setMatches(matchesData);
       setMatchups(matchupsData);
       setLeaderboard(lb);
 
-      // שומרים את הנתונים החדשים בזיכרון המטמון של הדפדפן
       sessionStorage.setItem(CACHE_KEY, JSON.stringify({
         timestamp: Date.now(),
         data: { allBets: allBetsData, matches: matchesData, matchups: matchupsData, leaderboard: lb }
@@ -111,7 +172,6 @@ export function Leaderboard() {
     <div className="space-y-4 pb-20 relative">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-black flex items-center gap-2"><Trophy className="text-secondary" size={24} />טבלת המובילים</h1>
-        {/* כפתור הרענון החדש - כופה משיכת נתונים חדשים ועוקף את המטמון */}
         <button onClick={() => loadData(true)} disabled={isRefreshing} className="p-2 bg-muted rounded-full hover:bg-muted/80 transition-colors disabled:opacity-50">
           <RefreshCw size={18} className={`text-muted-foreground ${isRefreshing ? 'animate-spin' : ''}`} />
         </button>
@@ -150,12 +210,21 @@ export function Leaderboard() {
             onClick={() => setSelectedProfile(entry)}
             className={`flex items-center justify-between px-4 py-3.5 cursor-pointer hover:bg-muted/50 transition-colors ${i > 0 ? 'border-t border-border' : ''} ${entry.email === user?.email ? 'bg-primary/5 border-r-4 border-r-primary' : ''}`}>
             <div className="flex items-center gap-3">
+              <span className="font-black text-xs text-muted-foreground w-4 text-center">{i + 1}</span>
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-black text-primary overflow-hidden border border-primary/20 shrink-0">
                   {entry.avatar_url ? <img src={entry.avatar_url} className="w-full h-full object-cover" /> : (entry.nickname || '?')[0].toUpperCase()}
               </div>
               <div className="flex flex-col">
                 <span className="font-bold text-sm">{entry.nickname || entry.email.split('@')[0]}</span>
-                {entry.favorite_team && <span className="text-[10px] text-muted-foreground mt-0.5">אוהד {entry.favorite_team}</span>}
+                {entry.tieBreakerNote ? (
+                  /* תגית סיבת הניצחון בשובר שוויון - מופיעה אך ורק בתיקו בסיום הטורניר */
+                  <div className="flex items-center gap-1 mt-1 text-[9px] font-black text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded w-fit tracking-wide animate-pulse">
+                    {entry.tieBreakerType === 'exact' ? <Target size={10} /> : <Swords size={10} />}
+                    {entry.tieBreakerNote}
+                  </div>
+                ) : (
+                  entry.favorite_team && <span className="text-[10px] text-muted-foreground mt-0.5">אוהד {entry.favorite_team}</span>
+                )}
               </div>
             </div>
             <span className="font-black text-xl text-primary">{entry.total_points}</span>
@@ -176,7 +245,10 @@ export function Leaderboard() {
               </div>
               <div>
                 <h2 className="text-lg font-black">{selectedProfile.nickname || selectedProfile.email.split('@')[0]}</h2>
-                <div className="text-xs opacity-90 font-bold">{selectedProfile.total_points} נקודות סה"כ</div>
+                <div className="text-xs opacity-90 font-bold">
+                  {selectedProfile.total_points} נקודות סה"כ 
+                  {selectedProfile.exact_hits !== undefined && ` | ${selectedProfile.exact_hits} בול פגיעה`}
+                </div>
               </div>
             </div>
 
