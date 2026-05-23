@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { Trophy, Calendar, Swords, CreditCard, MessageCircle, User, Shield, Menu, X, Table, BookOpen, Sparkles, Flame } from 'lucide-react'; // <-- הוספנו את Flame
+import { Trophy, Calendar, Swords, CreditCard, MessageCircle, User, Menu, X, Table, BookOpen, Sparkles, Flame } from 'lucide-react'; 
 import { auth } from '../lib/supabase.js';
 import { useAuth } from '../lib/AuthContext';
 
@@ -14,7 +14,7 @@ const NAV_ITEMS = [
   { to: '/chat', icon: MessageCircle, label: 'צ\'אט' },
   { to: '/rules', icon: BookOpen, label: 'חוקים' },
   { to: '/oracle', icon: Sparkles, label: 'אורקל' },
-  { to: '/roasts', icon: Flame, label: 'הצינוק 🔥' }, // <--- הקישור החדש לזירת ה-Roasts!
+  { to: '/roasts', icon: Flame, label: 'הצינוק 🔥' }, 
   { to: '/profile', icon: User, label: 'פרופיל' },
 ];
 
@@ -57,25 +57,15 @@ export default function TopNav({ user }) {
             </div>
           </div>
 
+          {/* Desktop Right - כפתור יציאה בלבד */}
           <div className="hidden md:flex items-center gap-4">
-            {user?.is_admin && (
-              <Link to="/admin" className="flex items-center gap-1.5 px-3 py-2 bg-orange-500/10 text-orange-600 rounded-xl text-sm font-bold border border-orange-500/20">
-                <Shield size={16} />
-                <span>ניהול</span>
-              </Link>
-            )}
             <button onClick={handleSignOut} className="text-sm font-medium text-red-500 hover:text-red-600 px-3 py-2 rounded-xl hover:bg-red-500/5 transition-colors">
               יציאה
             </button>
           </div>
 
-          {/* Mobile menu button */}
+          {/* Mobile menu button - כפתור המבורגר בלבד */}
           <div className="md:hidden flex items-center gap-2">
-            {user?.is_admin && (
-              <Link to="/admin" className="p-2 bg-orange-500/10 text-orange-600 rounded-xl border border-orange-500/20">
-                <Shield size={18} />
-              </Link>
-            )}
             <button onClick={() => setMenuOpen(!menuOpen)} className="p-2 text-foreground hover:bg-muted rounded-xl transition-colors">
               {menuOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
