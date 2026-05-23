@@ -17,7 +17,7 @@ export function Leaderboard() {
 
   const loadData = async (forceRefresh = false) => {
     const CACHE_KEY = 'leaderboard_cache_v1';
-    const CACHE_TIME = 1000 * 60 * 5;
+    const CACHE_TIME = 1000 * 60 * 5; // 5 דקות של זיכרון מטמון
 
     if (!forceRefresh) {
       const cachedString = sessionStorage.getItem(CACHE_KEY);
@@ -38,6 +38,7 @@ export function Leaderboard() {
     if (!forceRefresh) setLoading(true);
 
     try {
+      // משיכת נתונים מרוכזת מתוך ה-View החדש בשרת
       const [{ data: viewData }, fetchedBets, { data: allMatchups }, { data: fetchedMatches }] = await Promise.all([
         supabase.from('leaderboard_view').select('*'), 
         betsApi.listAll(),
@@ -50,8 +51,10 @@ export function Leaderboard() {
       const matchesData = fetchedMatches || [];
       const matchupsData = allMatchups || [];
 
-      // ---- הניסוי: כופים על המערכת לחשוב שהטורניר הסתיים ----
-      const isTournamentFinished = true; 
+      // בדיקה האם הטורניר נגמר לחלוטין (כל המשחקים הקיימים עומדים על סטטוס סופי)
+      const isTournamentFinished = matchesData.length > 0 && matchesData.every(m => 
+        ['ft', 'aet', 'pen', 'finished'].includes(m.status?.toLowerCase())
+      );
 
       const lb = leaderboardData.filter(u => u.onboarding_complete || u.nickname)
         .map(u => ({ 
@@ -60,45 +63,64 @@ export function Leaderboard() {
           tieBreakerType: '' 
         }))
         .sort((a, b) => {
-          if (b.total_points !== a.total_points) return b.total_points - a.total_points;
-          if (b.exact_hits !== a.exact_hits) return b.exact_hits - a.exact_hits;
+          // חוק 1: נקודות כלליות (מגיע מחושב מהשרת)
+          if (b.total_points !== a.total_points) {
+            return b.total_points - a.total_points;
+          }
+
+          // חוק 2: כמות הימורים מדויקים (מגיע מחושב מהשרת)
+          if (b.exact_hits !== a.exact_hits) {
+            return b.exact_hits - a.exact_hits;
+          }
+
+          // חוק 3: מי ניצח יותר עימותים יומיים ביניהם (ראש בראש)
           const directMatchups = matchupsData.filter(m => 
             m.status?.toLowerCase() === 'finished' && (
               (m.user1_email === a.email && m.user2_email === b.email) ||
               (m.user1_email === b.email && m.user2_email === a.email)
             )
           );
+
           let aWins = 0;
           let bWins = 0;
           directMatchups.forEach(m => {
             if (m.winner_email === a.email) aWins++;
             if (m.winner_email === b.email) bWins++;
           });
-          if (bWins !== aWins) return bWins - aWins;
-          return 0; 
+
+          if (bWins !== aWins) {
+            return bWins - aWins;
+          }
+
+          return 0; // תיקו מוחלט
         });
 
+      // הצמדת הודעות שוברי השוויון - קורה אך ורק אם הטורניר הסתיים במלואו
       if (isTournamentFinished) {
         for (let i = 0; i < lb.length - 1; i++) {
           const current = lb[i];
           const next = lb[i + 1];
+          
           if (current.total_points === next.total_points) {
             if (current.exact_hits > next.exact_hits) {
               current.tieBreakerNote = 'יותר הימורים מדוייקים';
               current.tieBreakerType = 'exact';
             } else {
+              // בדיקת היסטוריית מפגשים ישירים לצורך קביעת התווית הוויזואלית
               const directMatchups = matchupsData.filter(m => 
                 m.status?.toLowerCase() === 'finished' && (
                   (m.user1_email === current.email && m.user2_email === next.email) ||
                   (m.user1_email === next.email && m.user2_email === current.email)
                 )
               );
+              
               let currentWins = 0;
               let nextWins = 0;
               directMatchups.forEach(m => {
                 if (m.winner_email === current.email) currentWins++;
                 if (m.winner_email === next.email) nextWins++;
               });
+              
               if (currentWins > nextWins) {
                 current.tieBreakerNote = 'יותר ניצחונות בעימותים';
                 current.tieBreakerType = 'h2h';
@@ -108,19 +130,15 @@ export function Leaderboard() {
         }
       }
         
-      // ---- הזרקת נתוני בדיקה מדומה לראש הטבלה כדי לראות את המדבקה מיד ----
-      const testLeaderboard = [
-        { email: 'test1@faker.com', nickname: 'ארגנטינה (מובילה בתיקו)', total_points: 99, exact_hits: 12, tieBreakerNote: 'יותר הימורים מדוייקים', tieBreakerType: 'exact', onboarding_complete: true },
-        { email: 'test2@faker.com', nickname: 'ברזיל (אותו ניקוד)', total_points: 99, exact_hits: 4, tieBreakerNote: '', tieBreakerType: '', onboarding_complete: true },
-        ...lb
-      ];
-
       setAllBets(allBetsData);
       setMatches(matchesData);
       setMatchups(matchupsData);
-      
-      // משתמשים במערך הבדיקה
-      setLeaderboard(testLeaderboard);
+      setLeaderboard(lb);
+
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+        timestamp: Date.now(),
+        data: { allBets: allBetsData, matches: matchesData, matchups: matchupsData, leaderboard: lb }
+      }));
 
     } catch (err) {
       console.error('Error fetching leaderboard data:', err);
@@ -199,6 +217,7 @@ export function Leaderboard() {
               <div className="flex flex-col">
                 <span className="font-bold text-sm">{entry.nickname || entry.email.split('@')[0]}</span>
                 {entry.tieBreakerNote ? (
+                  /* תגית סיבת הניצחון בשובר שוויון - מופיעה אך ורק בתיקו בסיום הטורניר */
                   <div className="flex items-center gap-1 mt-1 text-[9px] font-black text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded w-fit tracking-wide animate-pulse">
                     {entry.tieBreakerType === 'exact' ? <Target size={10} /> : <Swords size={10} />}
                     {entry.tieBreakerNote}
