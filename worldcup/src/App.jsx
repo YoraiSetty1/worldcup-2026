@@ -14,13 +14,13 @@ import { AuthProvider } from './lib/AuthContext';
 import WorldCupTable from './components/WorldCupTable';
 import Rules from './pages/Rules'; 
 import Oracle from './pages/Oracle'; 
-import Roasts from './pages/Roasts'; // <--- 1. יבוא עמוד ה-Roasts החדש
+import Roasts from './pages/Roasts'; 
 
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Toaster position="top-center" richColors dir=\"rtl\" />
+        <Toaster position="top-center" richColors dir="rtl" />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<Layout />}>
@@ -34,7 +34,7 @@ export default function App() {
             <Route path="rules" element={<Rules />} />
             <Route path="profile" element={<Profile />} />
             <Route path="oracle" element={<Oracle />} /> 
-            <Route path="roasts" element={<Roasts />} /> {/* <--- 2. נתיב חדש לזירת ה-Roasts */}
+            <Route path="roasts" element={<Roasts />} /> 
             <Route path="admin" element={<AdminPanel />} />
           </Route>
           <Route path="*" element={<Navigate to="/" />} />
