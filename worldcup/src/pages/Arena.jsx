@@ -52,7 +52,13 @@ export default function Arena() {
             if (!byMeAgainstHim && !byHimAgainstMe) return;
 
             const m = allMatches.find(x => x.id === c.used_on_match_id);
-            const matchText = m ? ` במשחק ${m.home_team_name} נגד ${m.away_team_name}` : '';
+            if (!m) return;
+            
+            // התיקון: מוודאים שהמשחק עליו הופעל הקלף שייך ליום העימות הנוכחי בלבד!
+            const matchDay = moment(m.kickoff_time).subtract(10, 'hours').format('YYYY-MM-DD');
+            if (matchDay !== today) return;
+
+            const matchText = ` במשחק ${m.home_team_name} נגד ${m.away_team_name}`;
             
             if (['result_flip', 'block_exact'].includes(c.card_type)) {
               if (byMeAgainstHim) {
