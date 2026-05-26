@@ -11,9 +11,9 @@ export default async function handler(req, res) {
   }
 
   const API_KEY = process.env.VITE_API_SPORTS_KEY;
-  // שים לב: שינינו ל-WC (World Cup) ושנה ל-2026!
-  const COMPETITION = 'PD'; 
-  const SEASON = 2025; 
+  // הגדרה רשמית למונדיאל
+  const COMPETITION = 'WC'; 
+  const SEASON = 2026; 
 
   try {
     const url = `https://api.football-data.org/v4/competitions/${COMPETITION}/matches?season=${SEASON}`;
@@ -23,19 +23,9 @@ export default async function handler(req, res) {
     
     const data = await response.json();
 
+    // אם יש שגיאה במשיכת המונדיאל, פשוט מחזירים שגיאה ולא מביאים ליגה אחרת
     if (data.errorCode) {
-      // חזרה זמנית ללה ליגה אם המונדיאל חסום/עדיין לא זמין
-      console.warn("World Cup data unavailable, attempting to fetch La Liga instead.");
-      const fallbackUrl = `https://api.football-data.org/v4/competitions/PD/matches?season=2025`;
-      const fallbackResponse = await fetch(fallbackUrl, {
-        headers: { 'X-Auth-Token': API_KEY }
-      });
-      const fallbackData = await fallbackResponse.json();
-      
-      if(fallbackData.errorCode) {
-           return res.status(403).json({ error: data.message, fallbackError: fallbackData.message });
-      }
-      data.matches = fallbackData.matches;
+      return res.status(403).json({ error: data.message });
     }
 
     if (!data.matches || data.matches.length === 0) {
@@ -62,7 +52,7 @@ export default async function handler(req, res) {
         status: match.status.toLowerCase(),
         kickoff_time: match.utcDate,
         stage: internalStage,
-        group_name: match.group // <--- שומר את הבית!
+        group_name: match.group
       }, { onConflict: 'api_id' });
 
       if (error) {
