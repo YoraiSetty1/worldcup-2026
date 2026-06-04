@@ -5,7 +5,7 @@ import { matchesApi, supabase } from '../lib/supabase.js';
 import moment from 'moment';
 
 // 🚨 שים כאן את מפתח ה-API של Gemini שקיבלת:
-const GEMINI_API_KEY = "YOUR_API_KEY_HERE";
+const GEMINI_API_KEY = "AIzaSyBJm1pRnwtwemacnhLNGBvXLSpxIfzq4uQ";
 
 export default function Oracle() {
   const [matches, setMatches] = useState([]);
