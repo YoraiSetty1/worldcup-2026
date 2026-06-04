@@ -59,7 +59,7 @@ export default function Oracle() {
     try {
       const prompt = `אתה אנליסט נתוני ספורט ומומחה הימורי כדורגל עבור אפליקציית טורניר חברים. נתח את המשחק הבא: ${match.home_team_name} נגד ${match.away_team_name}. תחשוב על יחסי כוחות, נתונים מאתרי הימורים בעולם וסטטיסטיקה. החזר לי תשובה בפורמט JSON טהור בלבד. השדות שחובה להחזיר: home_win_pct (מספר), draw_pct (מספר), away_win_pct (מספר), analysis (טקסט קצר בעברית של 2-3 משפטים עם המלצת הימור).`;
 
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`;
       
       const res = await fetch(geminiUrl, {
         method: 'POST',
