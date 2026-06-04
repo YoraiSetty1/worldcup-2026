@@ -5,7 +5,7 @@ import { matchesApi, supabase } from '../lib/supabase.js';
 import moment from 'moment';
 
 // 🚨 שים כאן את מפתח ה-API של Gemini שקיבלת:
-const GEMINI_API_KEY = "AIzaSyBJm1pRnwtwemacnhLNGBvXLSpxIfzq4uQ";
+const GEMINI_API_KEY = "AIzaSyBJm1pRnwtwemacnhLNGBvXLSpxIfzq4uQ".trim();
 
 export default function Oracle() {
   const [matches, setMatches] = useState([]);
@@ -67,7 +67,12 @@ export default function Oracle() {
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
       });
 
-      if (!res.ok) throw new Error("Gemini API Error");
+      // חשיפת השגיאה האמיתית במידה ויש
+      if (!res.ok) {
+        const errorDetails = await res.text();
+        console.error("🚨 הנה הסיבה האמיתית שג'מיני כועס:", errorDetails);
+        throw new Error(`Gemini API Error: ${res.status}`);
+      }
 
       const geminiData = await res.json();
       let rawText = geminiData.candidates[0].content.parts[0].text;
@@ -99,7 +104,7 @@ export default function Oracle() {
 
     } catch (error) {
       console.error("Oracle Analysis Failed:", error);
-      alert("האורקל נתקל בעומס אנרגטי, נסה לשאול שוב! ⚡");
+      alert("האורקל נתקל בעומס אנרגטי, פתח קונסולה (F12) כדי לראות למה! ⚡");
       setStates(prev => ({ ...prev, [matchId]: 'idle' }));
     }
   };
