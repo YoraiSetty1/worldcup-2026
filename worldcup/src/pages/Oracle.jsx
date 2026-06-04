@@ -28,7 +28,6 @@ export default function Oracle() {
       const predictionsMap = {};
       if (predictions) {
         predictions.forEach(p => {
-          // מנגנון ה"טריות": שומר את התחזית רק אם היא נוצרה היום
           if (p.created_at && moment(p.created_at).isSame(moment(), 'day')) {
             predictionsMap[p.match_id] = p;
           }
@@ -54,8 +53,8 @@ export default function Oracle() {
     }
 
     try {
-      // פרומפט משודרג: עכשיו מבקש גם את התוצאה המדויקת!
-      const prompt = `אתה אנליסט נתוני ספורט ומומחה הימורי כדורגל עבור אפליקציית טורניר חברים. נתח את המשחק הבא: ${match.home_team_name} נגד ${match.away_team_name}. תחשוב על יחסי כוחות עכשוויים, פצועים, נתונים מאתרי הימורים בעולם וסטטיסטיקה. החזר לי תשובה בפורמט JSON טהור בלבד. השדות שחובה להחזיר: home_win_pct (מספר), draw_pct (מספר), away_win_pct (מספר), predicted_score (מחרוזת של התוצאה הסופית הצפויה בלבד, למשל "2-1" או "0-0"), analysis (טקסט קצר בעברית של 2-3 משפטים עם המלצת הימור חכמה).`;
+      // הפרומפט שופר כדי למנוע סתירות לוגיות לחלוטין
+      const prompt = `אתה אנליסט נתוני ספורט ומומחה הימורי כדורגל עבור אפליקציית טורניר חברים. נתח את המשחק הבא: קבוצת בית (Home) ${match.home_team_name} נגד קבוצת חוץ (Away) ${match.away_team_name}. תחשוב על יחסי כוחות עכשוויים, פצועים, נתונים מאתרי הימורים בעולם וסטטיסטיקה. החזר לי תשובה בפורמט JSON טהור בלבד. השדות שחובה להחזיר: home_win_pct (מספר), draw_pct (מספר), away_win_pct (מספר), predicted_score (מחרוזת בדיוק בפורמט "Home-Away", למשל "2-0" או "1-1". חובה שהתוצאה תשקף במדויק את האחוזים! אם קבוצת הבית עדיפה באחוזים היא חייבת לנצח בתוצאה), analysis (טקסט קצר בעברית של 2-3 משפטים עם המלצת הימור).`;
 
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
       
@@ -66,8 +65,6 @@ export default function Oracle() {
       });
 
       if (!res.ok) {
-        const errorDetails = await res.text();
-        console.error("🚨 שגיאת API:", errorDetails);
         throw new Error(`Gemini API Error: ${res.status}`);
       }
 
@@ -88,14 +85,11 @@ export default function Oracle() {
         home_win_pct: predictionJson.home_win_pct,
         draw_pct: predictionJson.draw_pct,
         away_win_pct: predictionJson.away_win_pct,
-        predicted_score: predictionJson.predicted_score || "N/A", // הוספת התוצאה המדויקת!
+        predicted_score: predictionJson.predicted_score || "N/A",
         prediction_text: predictionJson.analysis
       };
 
-      // מחיקת תחזית ישנה (כדי לרענן נתונים למקרה שהיה פצוע)
       await supabase.from('oracle_predictions').delete().eq('match_id', matchId);
-      
-      // הכנסת התחזית החדשה
       await supabase.from('oracle_predictions').insert(newPrediction);
 
       setOracleData(prev => ({ ...prev, [matchId]: newPrediction }));
@@ -134,6 +128,16 @@ export default function Oracle() {
           const state = states[m.id] || 'idle';
           const prediction = oracleData[m.id]; 
 
+          // חילוץ בטוח של התוצאה למניעת בלבול ימין-שמאל בעברית
+          let homeG = "", awayG = "";
+          if (state === 'revealed' && prediction?.predicted_score) {
+            const parts = prediction.predicted_score.replace(':', '-').split('-');
+            if(parts.length === 2) {
+              homeG = parts[0].trim();
+              awayG = parts[1].trim();
+            }
+          }
+
           return (
             <div key={m.id} className={`bg-white border p-4 rounded-xl relative overflow-hidden transition-all duration-500 ${state === 'analyzing' ? 'border-purple-300 shadow-[0_0_20px_rgba(168,85,247,0.1)]' : 'border-gray-100 shadow-sm'}`}>
               
@@ -159,11 +163,13 @@ export default function Oracle() {
                   <span className="text-xs font-bold text-center text-gray-800 w-full truncate">{m.home_team_name}</span>
                 </div>
                 
-                {/* כאן הקסם: מחליף את המילה VS בתוצאה המדויקת! */}
                 <div className="px-2 flex justify-center items-center shrink-0 min-w-[60px]">
-                  {state === 'revealed' && prediction?.predicted_score ? (
-                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white px-4 py-1.5 rounded-xl font-black text-xl shadow-md border border-purple-400">
-                      {prediction.predicted_score}
+                  {state === 'revealed' && homeG && awayG ? (
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center justify-center gap-3 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white px-4 py-1.5 rounded-xl shadow-md border border-purple-400">
+                      {/* סידור מיוחד שמוודא ששער הבית יושב בדיוק ליד קבוצת הבית! */}
+                      <span className="text-xl font-black">{homeG}</span>
+                      <span className="text-sm opacity-70">-</span>
+                      <span className="text-xl font-black">{awayG}</span>
                     </motion.div>
                   ) : (
                     <span className="text-[10px] font-black text-gray-400 bg-gray-50 border border-gray-100 px-2 py-1 rounded">VS</span>
