@@ -28,7 +28,7 @@ export default function Oracle() {
       const predictionsMap = {};
       if (predictions) {
         predictions.forEach(p => {
-          // מנגנון ה"טריות": שומר את התחזית רק אם היא נוצרה היום!
+          // מנגנון ה"טריות": שומר את התחזית רק אם היא נוצרה היום
           if (p.created_at && moment(p.created_at).isSame(moment(), 'day')) {
             predictionsMap[p.match_id] = p;
           }
@@ -54,7 +54,8 @@ export default function Oracle() {
     }
 
     try {
-      const prompt = `אתה אנליסט נתוני ספורט ומומחה הימורי כדורגל עבור אפליקציית טורניר חברים. נתח את המשחק הבא: ${match.home_team_name} נגד ${match.away_team_name}. תחשוב על יחסי כוחות עכשוויים, פצועים, נתונים מאתרי הימורים בעולם וסטטיסטיקה. החזר לי תשובה בפורמט JSON טהור בלבד. השדות שחובה להחזיר: home_win_pct (מספר), draw_pct (מספר), away_win_pct (מספר), analysis (טקסט קצר בעברית של 2-3 משפטים עם המלצת הימור חכמה).`;
+      // פרומפט משודרג: עכשיו מבקש גם את התוצאה המדויקת!
+      const prompt = `אתה אנליסט נתוני ספורט ומומחה הימורי כדורגל עבור אפליקציית טורניר חברים. נתח את המשחק הבא: ${match.home_team_name} נגד ${match.away_team_name}. תחשוב על יחסי כוחות עכשוויים, פצועים, נתונים מאתרי הימורים בעולם וסטטיסטיקה. החזר לי תשובה בפורמט JSON טהור בלבד. השדות שחובה להחזיר: home_win_pct (מספר), draw_pct (מספר), away_win_pct (מספר), predicted_score (מחרוזת של התוצאה הסופית הצפויה בלבד, למשל "2-1" או "0-0"), analysis (טקסט קצר בעברית של 2-3 משפטים עם המלצת הימור חכמה).`;
 
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
       
@@ -87,13 +88,14 @@ export default function Oracle() {
         home_win_pct: predictionJson.home_win_pct,
         draw_pct: predictionJson.draw_pct,
         away_win_pct: predictionJson.away_win_pct,
+        predicted_score: predictionJson.predicted_score || "N/A", // הוספת התוצאה המדויקת!
         prediction_text: predictionJson.analysis
       };
 
-      // מחיקת תחזית ישנה של המשחק (כדי לרענן נתונים למקרה שהיה פצוע)
+      // מחיקת תחזית ישנה (כדי לרענן נתונים למקרה שהיה פצוע)
       await supabase.from('oracle_predictions').delete().eq('match_id', matchId);
       
-      // הכנסת התחזית החדשה והטרייה
+      // הכנסת התחזית החדשה
       await supabase.from('oracle_predictions').insert(newPrediction);
 
       setOracleData(prev => ({ ...prev, [matchId]: newPrediction }));
@@ -157,8 +159,15 @@ export default function Oracle() {
                   <span className="text-xs font-bold text-center text-gray-800 w-full truncate">{m.home_team_name}</span>
                 </div>
                 
-                <div className="w-12 flex justify-center items-center shrink-0">
-                  <span className="text-xs font-black text-gray-300">VS</span>
+                {/* כאן הקסם: מחליף את המילה VS בתוצאה המדויקת! */}
+                <div className="px-2 flex justify-center items-center shrink-0 min-w-[60px]">
+                  {state === 'revealed' && prediction?.predicted_score ? (
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white px-4 py-1.5 rounded-xl font-black text-xl shadow-md border border-purple-400">
+                      {prediction.predicted_score}
+                    </motion.div>
+                  ) : (
+                    <span className="text-[10px] font-black text-gray-400 bg-gray-50 border border-gray-100 px-2 py-1 rounded">VS</span>
+                  )}
                 </div>
 
                 <div className="flex flex-col items-center flex-1">
