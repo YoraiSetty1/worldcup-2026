@@ -5,6 +5,7 @@ import { Trophy, Target, Swords, Calendar, ChevronLeft, Clock } from 'lucide-rea
 import { matchesApi, profilesApi, betsApi, supabase } from '../lib/supabase.js';
 import MatchCard from '../components/MatchCard';
 import Onboarding from './Onboarding';
+import MorningPaper from '../components/MorningPaper';
 import moment from 'moment';
 
 export default function Dashboard() {
@@ -36,10 +37,8 @@ export default function Dashboard() {
     
     const pointsMap = {};
     
-    // חישוב מניחושים
     allBets.forEach(b => { pointsMap[b.user_email] = (pointsMap[b.user_email] || 0) + (b.points_earned || 0); });
     
-    // התיקון: בונוס מהזירה - נקודה 1 בלבד לכל ניצחון (יישור קו עם ה-Leaderboard)
     if (allMatchups) {
       allMatchups.forEach(m => {
         if (m.winner_email && m.winner_email !== 'tie') {
@@ -116,6 +115,9 @@ export default function Dashboard() {
           ))}
         </div>
       </motion.div>
+
+      {/* הנה עיתון הבוקר שלנו! */}
+      <MorningPaper />
 
       {liveMatches.length > 0 && (
         <section>
