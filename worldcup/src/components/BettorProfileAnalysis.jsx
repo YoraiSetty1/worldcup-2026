@@ -31,9 +31,10 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
       ) || [];
 
       if (completedBets.length === 0) {
-        setStats({ totalBets: 0 });
-        setLoading(false);
-        return;
+      setStats({ totalBets: 0 });
+      setAnalysis("עדיין לא הספקת לרשום מספיק תוצאות כדי שאוכל לנתח את הראש המעניין שלך. תחזור אחרי כמה משחקים!");
+      setLoading(false);
+      return;
       }
 
       let drawBets = 0;
