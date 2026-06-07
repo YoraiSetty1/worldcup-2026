@@ -5,6 +5,7 @@ import { Trophy, Crown, Medal, X, Star, Target, Swords, RefreshCw } from 'lucide
 import { betsApi, supabase } from '../lib/supabase.js';
 import moment from 'moment';
 import BettorProfileAnalysis from '../components/BettorProfileAnalysis.jsx';
+import TrashTalkBtn from '../components/TrashTalkBtn.jsx';
 
 export function Leaderboard() {
   const { user } = useOutletContext();
@@ -190,6 +191,10 @@ export function Leaderboard() {
                   <div className={`text-3xl ${idx === 0 ? 'text-4xl' : ''} font-black ${text}`}>{entry.total_points}</div>
                   <div className={`text-xs font-bold ${text} mt-1 max-w-[80px] truncate`}>{entry.nickname || entry.email.split('@')[0]}</div>
                 </div>
+                {/* כפתור טראש טוק לטופ 3 */}
+                <div onClick={(e) => e.stopPropagation()} className="mt-1">
+                  <TrashTalkBtn player={entry} currentUser={user} />
+                </div>
                 <span className={`text-sm font-bold ${text}`}>#{idx + 1}</span>
               </motion.div>
             );
@@ -220,7 +225,12 @@ export function Leaderboard() {
                 )}
               </div>
             </div>
-            <span className="font-black text-xl text-primary">{entry.total_points}</span>
+            
+            {/* נקודות וכפתור אש משולבים יחד בקצה השורה */}
+            <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+              <TrashTalkBtn player={entry} currentUser={user} />
+              <span className="font-black text-xl text-primary">{entry.total_points}</span>
+            </div>
           </motion.div>
         ))}
       </div>

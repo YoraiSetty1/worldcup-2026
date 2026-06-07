@@ -19,7 +19,6 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
     setAnalysis(null);
     
     try {
-      // שליפת כל ההימורים של המשתמש כולל נתוני המשחקים לפי המבנה המדויק שלכם
       const { data: bets, error: betsError } = await supabase
         .from('bets')
         .select('match_id, home_bet, away_bet, points_earned, matches(home_team_name, away_team_name, home_score, away_score, status)')
@@ -27,7 +26,6 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
 
       if (betsError) throw betsError;
 
-      // סינון משחקים שהסתיימו על פי הסטטוסים הקיימים במערכת שלכם
       const completedBets = bets?.filter(b => 
         b.matches && ['finished', 'ft', 'aet', 'pen'].includes(b.matches.status?.toLowerCase())
       ) || [];
@@ -38,7 +36,6 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
         return;
       }
 
-      // חישוב מדדי עומק סטטיסטיים לפרופיל המהמר
       let drawBets = 0;
       let totalPredictedGoals = 0;
       let totalActualGoals = 0;
@@ -55,15 +52,8 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
         totalActualGoals += (homeScore + awayScore);
 
         if (homeBet === awayBet) drawBets++;
-        
-        // בדיקת בול פגיעה מדויק
-        if (homeBet === homeScore && awayBet === awayScore) {
-          bullseyeHits++;
-        }
-        // בדיקת פגיעה במגמה על בסיס הניקוד שנצבר בפועל במשחק
-        if (b.points_earned > 0) {
-          trendHits++;
-        }
+        if (homeBet === homeScore && awayBet === awayScore) bullseyeHits++;
+        if (b.points_earned > 0) trendHits++;
       });
 
       const totalBets = completedBets.length;
@@ -80,31 +70,29 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
 
       setStats(calculatedStats);
 
-      // בניית הפרומפט ל-Gemini 2.5 Flash ללא אזכור שמות או חבורות חסומות
-      const prompt = `אתה אנליסט כדורגל ופסיכולוג ספורט סאטירי, ציני ומצחיק בטירוף באפליקציית הימורי מונדיאל 2026 של חברים.
-      המטרה שלך היא לנתח את פרופיל המהמר של "${player.nickname || player.full_name || player.email.split('@')[0]}".
+      // פרומפט מעודכן שעוקף את מסנני הבטיחות של ג'מיני וממוקד בהומור ספורטיבי
+      const prompt = `אתה אנליסט כדורגל ופסיכולוג ספורט משעשע, ציני ומצחיק באפליקציית הימורי מונדיאל 2026 של חברים בליגה סגורה.
+      המטרה שלך היא לנתח את סגנון ההימורים של השחקן: "${player.nickname || player.full_name || player.email.split('@')[0]}".
       
-      הנה הנתונים הסטטיסטיים האמיתיים שלו מהטורניר עד כה:
-      - סך הכל הימורים על משחקים שהסתיימו: ${totalBets}
-      - ניקוד כללי נוכחי בטבלה: ${player.total_points || 0} נקודות.
+      הנה הסטטיסטיקות האמיתיות שלו מהטורניר:
+      - סך הכל הימורים שנסגרו: ${totalBets}
+      - ניקוד כללי נוכחי: ${player.total_points || 0} נקודות.
       - פגיעות בול (תוצאה מדויקת): ${player.exact_hits || bullseyeHits} משחקים.
-      - אחוז פגיעה כללי במגמה (ניצחון או תיקו): ${calculatedStats.hitRate}%.
-      - כמות פעמים שהימר על תוצאת תיקו: ${drawBets} מתוך ${totalBets} משחקים (${calculatedStats.drawRate}%).
-      - ממוצע שערים שהוא מנחש למשחק: ${calculatedStats.avgPredictedGoals} (לעומת ממוצע השערים האמיתי בפועל: ${calculatedStats.avgActualGoals}).
+      - אחוז פגיעה במגמה: ${calculatedStats.hitRate}%.
+      - הימורי תיקו: ${drawBets} מתוך ${totalBets} משחקים (${calculatedStats.drawRate}%).
+      - ממוצע שערים בניחוש שלו: ${calculatedStats.avgPredictedGoals} (מול ממוצע אמיתי במציאות: ${calculatedStats.avgActualGoals}).
 
       משימה:
-      כתוב פרופיל פסיכולוגי חריף, קורע מצחוק, עוקצני ומלא בסלנג מגרשים ישראלי (3-4 פסקאות קצרות). 
-      חלק את הפרופיל למבנה הבא:
-      1. תג סגנון המהמר (לדוגמה: "הבונקריסט המבוהל", "ההוזה חסר התקנה", "הטקטיקן המחושב", "בעל המזל העיוור").
-      2. ניתוח דפוסים (רד עליו על נטייה לתיקו, הימורי שערים מוגזמים, או פער בין הניחשים למציאות).
-      3. תחזית להמשך ועצה חברותית לעתיד.
+      כתוב ניתוח פרופיל פסיכולוגי קורע מצחוק, עוקצני ברוח ספורטיבית טובה ומלא בסלנג מגרשים ישראלי (3 פסקאות קצרות ונקיות).
+      בנה את זה כך:
+      1. תג סגנון המהמר בכותרת פשוטה (למשל: "הבונקריסט הפחדן", "ההוזה חסר התקנה", "הטקטיקן המחושב").
+      2. ניתוח חברותי מצחיק של הדפוסים שלו (רד עליו על נטייה קבועה לתיקו, הימורים מוגזמים של שערים, או פער מהמציאות).
+      3. עצה חצי-רצינית וחצי-עוקצנית להמשך המשחקים בליגה.
 
-      דגשים קריטיים:
-      - אל תשתמש או תמציא שמות פרטיים של חברים ואל תזכיר שמות של קבוצות ספציפיות. דבר תמיד על "החבר'ה בליגה".
-      - אל תשתמש בשום סימון מרקדאון מודגש כמו כוכביות (**) או סולמיות (##) בטקסט החוזר, רק פסקאות נקיות מופרדות בשורות חדשות.
-      - תהיה עוקצני, אל תהיה מנומס, אבל תשמור על זה מצחיק ובגובה העיניים.`;
+      דגשים:
+      - אל תשתמש בשמות פרטיים ספציפיים או בשמות של קבוצות. דבר כללית על "החבר'ה בליגה".
+      - אל תשתמש בשום עיצוב מרקדאון כמו כוכביות (**) או סולמיות (##) בטקסט, רק פסקאות נקיות מופרדות בשורות חדשות.`;
 
-      // ביצוע הקריאה בדיוק לפי הפורמט שעובד לכם ב-TrashTalk
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -113,7 +101,9 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
 
       if (!res.ok) throw new Error('API Error');
       const data = await res.json();
-      const text = data.candidates[0].content.parts[0].text;
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!text) throw new Error('Empty response from safety filters');
 
       setAnalysis(text);
     } catch (err) {
@@ -130,7 +120,6 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
     }
   }, [player?.email]);
 
-  // פונקציית השיתוף לצ'אט המשחקים
   const shareToChat = async () => {
     if (!analysis || !currentUser) return;
     setSharing(true);
@@ -144,7 +133,6 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
         user_nickname: currentUser.nickname || currentUser.full_name || currentUser.email.split('@')[0],
         message: messageText
       });
-      
       alert("הניתוח הפסיכולוגי נזרק לצ'אט בהצלחה! 🔥🚀");
     } catch (err) {
       console.error("Error sending analysis to chat:", err);
@@ -186,7 +174,6 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
-      {/* כרטיסיות הנתונים המהירות */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-card border border-border p-3.5 rounded-2xl flex flex-col items-center text-center shadow-sm">
           <TrendingUp className="w-5 h-5 text-primary mb-1.5" />
@@ -213,7 +200,6 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
         </div>
       </div>
 
-      {/* בלוק הניתוח המרכזי */}
       <div className="bg-card rounded-2xl border border-border overflow-hidden shadow-md">
         <div className="p-4 bg-muted/40 border-b border-border flex justify-between items-center">
           <div className="flex items-center gap-2.5">
@@ -225,11 +211,7 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
               <p className="text-[10px] text-muted-foreground">ניתוח דפוסי התנהגות ואסטרטגיית ניחושים</p>
             </div>
           </div>
-          <button 
-            onClick={fetchAndAnalyze}
-            className="p-1.5 bg-background border border-border rounded-full hover:bg-muted text-muted-foreground transition-colors"
-            title="רענן ניתוח"
-          >
+          <button onClick={fetchAndAnalyze} className="p-1.5 bg-background border border-border rounded-full hover:bg-muted text-muted-foreground transition-colors">
             <RefreshCw size={14} />
           </button>
         </div>
@@ -246,8 +228,6 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
                   )
                 ))}
               </div>
-              
-              {/* כפתור זריקה לצ'אט בתוך הניתוח */}
               <button 
                 onClick={shareToChat}
                 disabled={sharing}
