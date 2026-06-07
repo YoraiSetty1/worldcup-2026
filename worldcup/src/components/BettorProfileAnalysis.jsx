@@ -24,15 +24,20 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
         .select('match_id, home_bet, away_bet, points_earned, matches(home_team_name, away_team_name, home_score, away_score, status)')
         .eq('user_email', player.email);
 
-      if (betsError) throw betsError;
+      if (betsError) {
+        throw new Error(`Supabase Error: ${betsError.message}`);
+      }
 
-      const completedBets = bets?.filter(b => 
-        b.matches && ['finished', 'ft', 'aet', 'pen'].includes(b.matches.status?.toLowerCase())
-      ) || [];
+      // הגנה מחמירה על הסינון כדי למנוע קריסת Undefined
+      const completedBets = (bets || []).filter(b => {
+        if (!b || !b.matches || typeof b.matches.status !== 'string') return false;
+        return ['finished', 'ft', 'aet', 'pen'].includes(b.matches.status.toLowerCase());
+      });
 
-      // שומר סף: אם אין הימורים, אנחנו מגדירים סטטיסטיקה של 0 ויוצאים כדי לא לפנות סתם ל-AI
+      // שומר סף: יציאה נקייה ללא פנייה ל-API
       if (completedBets.length === 0) {
         setStats({ totalBets: 0 });
+        setAnalysis("עדיין לא הספקת לרשום מספיק תוצאות כדי שאוכל לנתח את הראש המעניין שלך. תחזור אחרי כמה משחקים!");
         setLoading(false);
         return;
       }
@@ -99,7 +104,7 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
       });
 
-      if (!res.ok) throw new Error('API Error');
+      if (!res.ok) throw new Error(`Gemini API Failed with status: ${res.status}`);
       const data = await res.json();
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
@@ -108,7 +113,8 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
       setAnalysis(text);
     } catch (err) {
       console.error("Analysis error:", err);
-      setError("וואלה, המוח הדיגיטלי קיבל סיבוב בניסיון להבין את הלוגיקה של ההימורים שלך. נסה שוב!");
+      // כעת השגיאה תציג את הבעיה הטכנית האמיתית כדי שנדע מה קורס
+      setError(err.message || "שגיאה לא ידועה");
     } finally {
       setLoading(false);
     }
@@ -151,14 +157,21 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
     );
   }
 
-  // הטיפול בשגיאות ומקרי קצה מתבצע כאן בצורה שלא הורסת את המסך:
+  // חסימה למקרה של חוסר נתונים או קריסה מוקדמת
   if (!stats || stats.totalBets === 0) {
     return (
-      <div className="p-6 text-center bg-card border border-border rounded-2xl text-muted-foreground text-sm">
-        <Brain className="mx-auto mb-3 text-primary" size={32} />
-        <p>{error ? error : "עדיין אין מספיק נתונים לניתוח פסיכולוגי. המוח הדיגיטלי מחכה לראות מה אתה שווה!"}</p>
+      <div className="p-6 text-center bg-card border border-border rounded-2xl text-muted-foreground text-sm flex flex-col items-center gap-3">
+        <Brain className="text-primary" size={32} />
+        {error ? (
+          <div className="text-destructive font-bold">
+            <p>התרחשה קריסה טכנית בשליפת הנתונים:</p>
+            <p className="text-xs mt-1 bg-destructive/10 p-2 rounded">{error}</p>
+          </div>
+        ) : (
+          <p>{analysis || "עדיין אין מספיק נתונים לניתוח פסיכולוגי. המוח הדיגיטלי מחכה לראות מה אתה שווה!"}</p>
+        )}
         {error && (
-          <button onClick={fetchAndAnalyze} className="mt-4 mx-auto flex items-center justify-center gap-1 text-xs underline font-bold text-destructive hover:opacity-80 transition-opacity">
+          <button onClick={fetchAndAnalyze} className="mt-2 flex items-center justify-center gap-1 text-xs underline font-bold text-destructive hover:opacity-80 transition-opacity">
             <RefreshCw size={12} /> נסה שוב
           </button>
         )}
