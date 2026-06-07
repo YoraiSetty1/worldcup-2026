@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { supabase, matchesApi, betsApi, cardsApi } from '../lib/supabase.js';
 import MatchCard from '../components/MatchCard';
 import { toast } from 'sonner';
+import CommentatorBot from '../components/CommentatorBot';
 
 moment.locale('he');
 
@@ -307,6 +308,7 @@ export default function Matches() {
           </motion.div>
         </div>
       )}
+      <CommentatorBot />
     </div>
   );
 }
