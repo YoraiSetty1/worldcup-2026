@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Brain, TrendingUp, AlertCircle, Sparkles, Target, Zap, RefreshCw } from 'lucide-react';
+import { Brain, TrendingUp, AlertCircle, Sparkles, Target, Zap, RefreshCw, MessageCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase.js';
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-export default function BettorProfileAnalysis({ player }) {
+export default function BettorProfileAnalysis({ player, currentUser }) {
   const [loading, setLoading] = useState(false);
+  const [sharing, setSharing] = useState(false);
   const [analysis, setAnalysis] = useState(null);
   const [stats, setStats] = useState(null);
   const [error, setError] = useState(null);
@@ -129,6 +130,30 @@ export default function BettorProfileAnalysis({ player }) {
     }
   }, [player?.email]);
 
+  // פונקציית השיתוף לצ'אט המשחקים
+  const shareToChat = async () => {
+    if (!analysis || !currentUser) return;
+    setSharing(true);
+    
+    const targetName = player.nickname || player.full_name || player.email.split('@')[0];
+    const messageText = `🧠 ה-AI ניתח את הפרופיל הפסיכולוגי של @${targetName}:\n\n${analysis}`;
+    
+    try {
+      await supabase.from('chat_messages').insert({
+        user_email: currentUser.email,
+        user_nickname: currentUser.nickname || currentUser.full_name || currentUser.email.split('@')[0],
+        message: messageText
+      });
+      
+      alert("הניתוח הפסיכולוגי נזרק לצ'אט בהצלחה! 🔥🚀");
+    } catch (err) {
+      console.error("Error sending analysis to chat:", err);
+      alert("הייתה בעיה לשלוח את הניתוח לצ'אט.");
+    } finally {
+      setSharing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="py-12 flex flex-col items-center justify-center text-muted-foreground space-y-4 bg-card rounded-2xl border border-border">
@@ -211,13 +236,27 @@ export default function BettorProfileAnalysis({ player }) {
 
         <div className="p-5 leading-relaxed text-sm text-muted-foreground space-y-4">
           {analysis ? (
-            analysis.split('\n').map((paragraph, index) => (
-              paragraph.trim() && (
-                <p key={index} className="text-foreground/90 font-medium text-justify">
-                  {paragraph}
-                </p>
-              )
-            ))
+            <>
+              <div className="space-y-4">
+                {analysis.split('\n').map((paragraph, index) => (
+                  paragraph.trim() && (
+                    <p key={index} className="text-foreground/90 font-medium text-justify">
+                      {paragraph}
+                    </p>
+                  )
+                ))}
+              </div>
+              
+              {/* כפתור זריקה לצ'אט בתוך הניתוח */}
+              <button 
+                onClick={shareToChat}
+                disabled={sharing}
+                className="w-full mt-2 flex items-center justify-center gap-2 bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white py-2.5 rounded-xl font-black text-xs hover:from-purple-500 hover:to-fuchsia-500 transition-all shadow-md shadow-purple-500/25 disabled:opacity-50"
+              >
+                <MessageCircle size={16} /> 
+                {sharing ? 'זורק לצ\'אט...' : 'זרוק את הניתוח לצ\'אט! 🔥'}
+              </button>
+            </>
           ) : (
             <div className="text-center py-4 text-xs italic animate-pulse">
               טוען את חוות הדעת של האנליסט...

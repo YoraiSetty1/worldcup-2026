@@ -3,8 +3,8 @@ import { useOutletContext } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Trophy, Crown, Medal, X, Star, Target, Swords, RefreshCw } from 'lucide-react';
 import { betsApi, supabase } from '../lib/supabase.js';
-import TrashTalkBtn from '../components/TrashTalkBtn'; // הנה הייבוא של כפתור האש
 import moment from 'moment';
+import BettorProfileAnalysis from './BettorProfileAnalysis.jsx';
 
 export function Leaderboard() {
   const { user } = useOutletContext();
@@ -18,7 +18,7 @@ export function Leaderboard() {
 
   const loadData = async (forceRefresh = false) => {
     const CACHE_KEY = 'leaderboard_cache_v1';
-    const CACHE_TIME = 1000 * 60 * 5; // 5 דקות של זיכרון מטמון
+    const CACHE_TIME = 1000 * 60 * 5; 
 
     if (!forceRefresh) {
       const cachedString = sessionStorage.getItem(CACHE_KEY);
@@ -88,7 +88,7 @@ export function Leaderboard() {
             return bWins - aWins;
           }
 
-          return 0; 
+          return 0;
         });
 
       if (isTournamentFinished) {
@@ -171,6 +171,7 @@ export function Leaderboard() {
         </button>
       </div>
 
+      {/* Top 3 UI */}
       {leaderboard.length >= 3 && (
         <div className="flex items-end justify-center gap-3 py-4">
           {[1, 0, 2].map(idx => {
@@ -196,6 +197,7 @@ export function Leaderboard() {
         </div>
       )}
 
+      {/* רשימת הדירוג */}
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         {leaderboard.map((entry, i) => (
           <motion.div key={entry.email} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
@@ -218,23 +220,16 @@ export function Leaderboard() {
                 )}
               </div>
             </div>
-            
-            {/* השינוי כאן: עטפנו את הניקוד והכפתור, וחסמנו את הלחיצה מלהיפתח לפרופיל השחקן */}
-            <div className="flex items-center gap-3">
-              <span className="font-black text-xl text-primary">{entry.total_points}</span>
-              <div onClick={(e) => e.stopPropagation()}>
-                <TrashTalkBtn player={entry} currentUser={user} />
-              </div>
-            </div>
-
+            <span className="font-black text-xl text-primary">{entry.total_points}</span>
           </motion.div>
         ))}
       </div>
 
+      {/* פופ-אפ פרטי משתמש */}
       {selectedProfile && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedProfile(null)}>
           <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} onClick={e => e.stopPropagation()}
-            className="bg-card w-full max-w-md rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            className="bg-card w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
             
             <div className="bg-primary p-5 text-primary-foreground relative flex items-center gap-4">
               <button onClick={() => setSelectedProfile(null)} className="absolute top-4 left-4 bg-black/20 p-2 rounded-full hover:bg-black/40"><X size={18} /></button>
@@ -251,6 +246,10 @@ export function Leaderboard() {
             </div>
 
             <div className="p-4 overflow-y-auto space-y-5">
+              {/* העברת ה-currentUser בצורה תקינה לקומפוננטה */}
+              <BettorProfileAnalysis player={selectedProfile} currentUser={user} />
+
+              {/* בחירות הטורניר */}
               <div className="bg-muted/30 rounded-2xl p-4 border border-border">
                 <h3 className="font-black text-xs mb-3 flex items-center gap-2 uppercase tracking-wider text-muted-foreground"><Star size={14}/> בחירות הטורניר</h3>
                 <div className="grid grid-cols-1 gap-2 text-sm">
@@ -259,6 +258,7 @@ export function Leaderboard() {
                 </div>
               </div>
 
+              {/* היסטוריית עימותים (הזירה) */}
               <div>
                 <h3 className="font-black text-xs mb-3 flex items-center gap-2 uppercase tracking-wider text-muted-foreground"><Swords size={14} className="text-red-500"/> היסטוריית זירה</h3>
                 <div className="space-y-2">
@@ -295,6 +295,7 @@ export function Leaderboard() {
                 </div>
               </div>
 
+              {/* היסטוריית הימורים */}
               <div>
                 <h3 className="font-black text-xs mb-3 flex items-center gap-2 uppercase tracking-wider text-muted-foreground"><Target size={14} className="text-primary"/> הימורי משחקים</h3>
                 <div className="space-y-2">
@@ -315,7 +316,7 @@ export function Leaderboard() {
                         <div key={bet.id} className="bg-background border border-border rounded-xl p-2.5 flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <img src={match?.home_flag} className="w-4 h-4" />
-                            <span className="text-[11px] font-bold min-w-[30px] text-center">{bet.home_score}-{bet.away_score}</span>
+                            <span className="text-[11px] font-bold min-w-[30px] text-center">{bet.home_bet}-{bet.away_bet}</span>
                             <img src={match?.away_flag} className="w-4 h-4" />
                             <span className="text-[10px] text-muted-foreground truncate max-w-[60px]">{match?.home_team_name}</span>
                           </div>
