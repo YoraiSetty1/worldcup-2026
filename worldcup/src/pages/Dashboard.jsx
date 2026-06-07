@@ -6,6 +6,7 @@ import { matchesApi, profilesApi, betsApi, supabase } from '../lib/supabase.js';
 import MatchCard from '../components/MatchCard';
 import Onboarding from './Onboarding';
 import MorningPaper from '../components/MorningPaper';
+import TrashTalkBtn from '../components/TrashTalkBtn'; // הוספנו את הייבוא של הכפתור פה
 import moment from 'moment';
 
 export default function Dashboard() {
@@ -170,7 +171,13 @@ export default function Dashboard() {
                     {entry.nickname || entry.full_name || entry.email.split('@')[0]}
                   </span>
                 </div>
-                <span className="font-black text-lg text-primary">{entry.total_points}</span>
+                
+                {/* כאן הוספנו את הכפתור ליד הניקוד! */}
+                <div className="flex items-center gap-3">
+                  <span className="font-black text-lg text-primary">{entry.total_points}</span>
+                  <TrashTalkBtn player={entry} currentUser={user} />
+                </div>
+                
               </div>
             );
           })}
