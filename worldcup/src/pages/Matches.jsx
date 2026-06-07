@@ -191,7 +191,7 @@ export default function Matches() {
 
   if (loading) return <div className="p-8 text-center animate-pulse font-black text-muted-foreground">טוען משחקים...</div>;
 
-// וידוא הרמטי לשלב הבתים מול נוקאאוט
+  // וידוא הרמטי לשלב הבתים מול נוקאאוט
   const filteredMatches = matches.filter(m => {
     const stage = m.stage?.toLowerCase() || 'group';
     // אם זה מכיל את המילה group, זה שלב הבתים. אם לא - זה בוודאות נוקאאוט.
@@ -232,6 +232,7 @@ export default function Matches() {
             {renderMatchList(groupMatchesByDay(filteredMatches))}
           </div>
         )}
+      </div> {/* ה-div שסידר את הקריסה! */}
 
       {friendsModalMatch && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
