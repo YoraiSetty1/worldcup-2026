@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Trophy, Crown, Medal, X, Star, Target, Swords, RefreshCw } from 'lucide-react';
 import { betsApi, supabase } from '../lib/supabase.js';
 import moment from 'moment';
-import BettorProfileAnalysis from './BettorProfileAnalysis.jsx';
+import BettorProfileAnalysis from '../components/BettorProfileAnalysis.jsx';
 
 export function Leaderboard() {
   const { user } = useOutletContext();
@@ -246,7 +246,6 @@ export function Leaderboard() {
             </div>
 
             <div className="p-4 overflow-y-auto space-y-5">
-              {/* העברת ה-currentUser בצורה תקינה לקומפוננטה */}
               <BettorProfileAnalysis player={selectedProfile} currentUser={user} />
 
               {/* בחירות הטורניר */}
