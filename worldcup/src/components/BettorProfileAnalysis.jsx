@@ -30,11 +30,11 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
         b.matches && ['finished', 'ft', 'aet', 'pen'].includes(b.matches.status?.toLowerCase())
       ) || [];
 
+      // שומר סף: אם אין הימורים, אנחנו מגדירים סטטיסטיקה של 0 ויוצאים כדי לא לפנות סתם ל-AI
       if (completedBets.length === 0) {
-      setStats({ totalBets: 0 });
-      setAnalysis("עדיין לא הספקת לרשום מספיק תוצאות כדי שאוכל לנתח את הראש המעניין שלך. תחזור אחרי כמה משחקים!");
-      setLoading(false);
-      return;
+        setStats({ totalBets: 0 });
+        setLoading(false);
+        return;
       }
 
       let drawBets = 0;
@@ -71,7 +71,6 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
 
       setStats(calculatedStats);
 
-      // פרומפט מעודכן שעוקף את מסנני הבטיחות של ג'מיני וממוקד בהומור ספורטיבי
       const prompt = `אתה אנליסט כדורגל ופסיכולוג ספורט משעשע, ציני ומצחיק באפליקציית הימורי מונדיאל 2026 של חברים בליגה סגורה.
       המטרה שלך היא לנתח את סגנון ההימורים של השחקן: "${player.nickname || player.full_name || player.email.split('@')[0]}".
       
@@ -152,26 +151,20 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
     );
   }
 
-  if (error) {
+  // הטיפול בשגיאות ומקרי קצה מתבצע כאן בצורה שלא הורסת את המסך:
+  if (!stats || stats.totalBets === 0) {
     return (
-      <div className="p-6 text-center bg-destructive/10 border border-destructive/20 rounded-2xl text-destructive text-sm flex flex-col items-center gap-2">
-        <AlertCircle size={24} />
-        <span>{error}</span>
-        <button onClick={fetchAndAnalyze} className="mt-2 flex items-center gap-1 text-xs underline font-bold">
-          <RefreshCw size={12} /> נסה שוב
-        </button>
+      <div className="p-6 text-center bg-card border border-border rounded-2xl text-muted-foreground text-sm">
+        <Brain className="mx-auto mb-3 text-primary" size={32} />
+        <p>{error ? error : "עדיין אין מספיק נתונים לניתוח פסיכולוגי. המוח הדיגיטלי מחכה לראות מה אתה שווה!"}</p>
+        {error && (
+          <button onClick={fetchAndAnalyze} className="mt-4 mx-auto flex items-center justify-center gap-1 text-xs underline font-bold text-destructive hover:opacity-80 transition-opacity">
+            <RefreshCw size={12} /> נסה שוב
+          </button>
+        )}
       </div>
     );
   }
-
-  if (!stats || stats.totalBets === 0) {
-  return (
-    <div className="p-6 text-center bg-card border border-border rounded-2xl text-muted-foreground text-sm">
-      <Brain className="mx-auto mb-3 text-primary" size={32} />
-      <p>{analysis || "עדיין אין מספיק נתונים לניתוח פסיכולוגי. המוח הדיגיטלי מחכה לראות מה אתה שווה!"}</p>
-    </div>
-  );
-}
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
@@ -218,7 +211,15 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
         </div>
 
         <div className="p-5 leading-relaxed text-sm text-muted-foreground space-y-4">
-          {analysis ? (
+          {error ? (
+            <div className="text-center py-4 text-destructive flex flex-col items-center justify-center gap-3">
+              <AlertCircle size={28} />
+              <span className="font-bold">{error}</span>
+              <button onClick={fetchAndAnalyze} className="mt-2 flex items-center gap-1 text-sm underline font-black hover:opacity-80 transition-opacity">
+                <RefreshCw size={16} /> נסה שוב
+              </button>
+            </div>
+          ) : analysis ? (
             <>
               <div className="space-y-4">
                 {analysis.split('\n').map((paragraph, index) => (
