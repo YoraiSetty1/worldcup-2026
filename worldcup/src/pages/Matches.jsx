@@ -29,7 +29,6 @@ export default function Matches() {
   const [pendingBets, setPendingBets] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [showFinished, setShowFinished] = useState(false);
   const [tab, setTab] = useState('group');
 
   const [friendsModalMatch, setFriendsModalMatch] = useState(null);
@@ -192,9 +191,16 @@ export default function Matches() {
 
   if (loading) return <div className="p-8 text-center animate-pulse font-black text-muted-foreground">טוען משחקים...</div>;
 
-  const filteredMatches = matches.filter(m => (tab === 'group' ? m.stage === 'group' : m.stage !== 'group'));
-  const upcoming = filteredMatches.filter(m => !['FINISHED', 'AWARDED', 'CANCELLED'].includes(m.status?.toUpperCase()));
-  const finished = filteredMatches.filter(m => ['FINISHED', 'AWARDED', 'CANCELLED'].includes(m.status?.toUpperCase()));
+// וידוא הרמטי לשלב הבתים מול נוקאאוט
+  const filteredMatches = matches.filter(m => {
+    const stage = m.stage?.toLowerCase() || 'group';
+    // אם זה מכיל את המילה group, זה שלב הבתים. אם לא - זה בוודאות נוקאאוט.
+    const isGroup = stage === 'group' || stage === 'group_stage' || stage === 'regular_season';
+    return tab === 'group' ? isGroup : !isGroup;
+  });
+  
+  // מסדרים את המשחקים לפי זמן (כדי שיופיעו ברצף כרונולוגי: מה שנגמר למעלה, הבאים למטה)
+  filteredMatches.sort((a, b) => new Date(a.kickoff_time) - new Date(b.kickoff_time));
 
   return (
     <div className="max-w-2xl mx-auto pb-24 px-4 pt-4 relative">
@@ -211,7 +217,7 @@ export default function Matches() {
 
       <div className="flex bg-muted p-1 rounded-lg mb-6">
         {[['group', 'שלב הבתים'], ['knockout', 'נוקאאוט']].map(([val, label]) => (
-          <button key={val} onClick={() => { setTab(val); setShowFinished(false); }}
+          <button key={val} onClick={() => setTab(val)}
             className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${tab === val ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
             {label}
           </button>
@@ -219,18 +225,13 @@ export default function Matches() {
       </div>
 
       <div className="space-y-6">
-        {upcoming.length === 0 ? <p className="text-center text-muted-foreground py-8 font-medium italic">אין משחקים קרובים בשלב זה</p> : renderMatchList(groupMatchesByDay(upcoming))}
-      </div>
-
-      {finished.length > 0 && (
-        <div className="mt-8">
-          <button onClick={() => setShowFinished(!showFinished)} className="w-full flex items-center justify-between bg-card border border-border p-4 rounded-xl font-bold text-muted-foreground hover:bg-muted transition-colors shadow-sm text-sm">
-            <span>משחקים שנגמרו ({finished.length})</span>
-            <ChevronDown className={`transition-transform duration-300 ${showFinished ? 'rotate-180' : ''}`} />
-          </button>
-          {showFinished && <div className="space-y-6 mt-4">{renderMatchList(groupMatchesByDay(finished))}</div>}
-        </div>
-      )}
+        {filteredMatches.length === 0 ? (
+          <p className="text-center text-muted-foreground py-8 font-medium italic">אין משחקים בשלב זה</p>
+        ) : (
+          <div className="space-y-6 mt-4">
+            {renderMatchList(groupMatchesByDay(filteredMatches))}
+          </div>
+        )}
 
       {friendsModalMatch && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
