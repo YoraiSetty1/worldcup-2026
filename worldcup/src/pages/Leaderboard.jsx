@@ -3,6 +3,7 @@ import { useOutletContext } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Trophy, Crown, Medal, X, Star, Target, Swords, RefreshCw } from 'lucide-react';
 import { betsApi, supabase } from '../lib/supabase.js';
+import TrashTalkBtn from '../components/TrashTalkBtn'; // הנה הייבוא של כפתור האש
 import moment from 'moment';
 
 export function Leaderboard() {
@@ -38,7 +39,6 @@ export function Leaderboard() {
     if (!forceRefresh) setLoading(true);
 
     try {
-      // משיכת נתונים מרוכזת מתוך ה-View החדש בשרת
       const [{ data: viewData }, fetchedBets, { data: allMatchups }, { data: fetchedMatches }] = await Promise.all([
         supabase.from('leaderboard_view').select('*'), 
         betsApi.listAll(),
@@ -51,7 +51,6 @@ export function Leaderboard() {
       const matchesData = fetchedMatches || [];
       const matchupsData = allMatchups || [];
 
-      // בדיקה האם הטורניר נגמר לחלוטין (כל המשחקים הקיימים עומדים על סטטוס סופי)
       const isTournamentFinished = matchesData.length > 0 && matchesData.every(m => 
         ['ft', 'aet', 'pen', 'finished'].includes(m.status?.toLowerCase())
       );
@@ -63,17 +62,14 @@ export function Leaderboard() {
           tieBreakerType: '' 
         }))
         .sort((a, b) => {
-          // חוק 1: נקודות כלליות (מגיע מחושב מהשרת)
           if (b.total_points !== a.total_points) {
             return b.total_points - a.total_points;
           }
 
-          // חוק 2: כמות הימורים מדויקים (מגיע מחושב מהשרת)
           if (b.exact_hits !== a.exact_hits) {
             return b.exact_hits - a.exact_hits;
           }
 
-          // חוק 3: מי ניצח יותר עימותים יומיים ביניהם (ראש בראש)
           const directMatchups = matchupsData.filter(m => 
             m.status?.toLowerCase() === 'finished' && (
               (m.user1_email === a.email && m.user2_email === b.email) ||
@@ -92,10 +88,9 @@ export function Leaderboard() {
             return bWins - aWins;
           }
 
-          return 0; // תיקו מוחלט
+          return 0; 
         });
 
-      // הצמדת הודעות שוברי השוויון - קורה אך ורק אם הטורניר הסתיים במלואו
       if (isTournamentFinished) {
         for (let i = 0; i < lb.length - 1; i++) {
           const current = lb[i];
@@ -106,7 +101,6 @@ export function Leaderboard() {
               current.tieBreakerNote = 'יותר הימורים מדוייקים';
               current.tieBreakerType = 'exact';
             } else {
-              // בדיקת היסטוריית מפגשים ישירים לצורך קביעת התווית הוויזואלית
               const directMatchups = matchupsData.filter(m => 
                 m.status?.toLowerCase() === 'finished' && (
                   (m.user1_email === current.email && m.user2_email === next.email) ||
@@ -177,7 +171,6 @@ export function Leaderboard() {
         </button>
       </div>
 
-      {/* Top 3 UI */}
       {leaderboard.length >= 3 && (
         <div className="flex items-end justify-center gap-3 py-4">
           {[1, 0, 2].map(idx => {
@@ -203,7 +196,6 @@ export function Leaderboard() {
         </div>
       )}
 
-      {/* רשימת הדירוג */}
       <div className="bg-card rounded-xl border border-border overflow-hidden">
         {leaderboard.map((entry, i) => (
           <motion.div key={entry.email} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
@@ -217,7 +209,6 @@ export function Leaderboard() {
               <div className="flex flex-col">
                 <span className="font-bold text-sm">{entry.nickname || entry.email.split('@')[0]}</span>
                 {entry.tieBreakerNote ? (
-                  /* תגית סיבת הניצחון בשובר שוויון - מופיעה אך ורק בתיקו בסיום הטורניר */
                   <div className="flex items-center gap-1 mt-1 text-[9px] font-black text-amber-600 bg-amber-500/10 px-1.5 py-0.5 rounded w-fit tracking-wide animate-pulse">
                     {entry.tieBreakerType === 'exact' ? <Target size={10} /> : <Swords size={10} />}
                     {entry.tieBreakerNote}
@@ -227,12 +218,19 @@ export function Leaderboard() {
                 )}
               </div>
             </div>
-            <span className="font-black text-xl text-primary">{entry.total_points}</span>
+            
+            {/* השינוי כאן: עטפנו את הניקוד והכפתור, וחסמנו את הלחיצה מלהיפתח לפרופיל השחקן */}
+            <div className="flex items-center gap-3">
+              <span className="font-black text-xl text-primary">{entry.total_points}</span>
+              <div onClick={(e) => e.stopPropagation()}>
+                <TrashTalkBtn player={entry} currentUser={user} />
+              </div>
+            </div>
+
           </motion.div>
         ))}
       </div>
 
-      {/* פופ-אפ פרטי משתמש */}
       {selectedProfile && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm" onClick={() => setSelectedProfile(null)}>
           <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} onClick={e => e.stopPropagation()}
@@ -253,7 +251,6 @@ export function Leaderboard() {
             </div>
 
             <div className="p-4 overflow-y-auto space-y-5">
-              {/* בחירות הטורניר */}
               <div className="bg-muted/30 rounded-2xl p-4 border border-border">
                 <h3 className="font-black text-xs mb-3 flex items-center gap-2 uppercase tracking-wider text-muted-foreground"><Star size={14}/> בחירות הטורניר</h3>
                 <div className="grid grid-cols-1 gap-2 text-sm">
@@ -262,7 +259,6 @@ export function Leaderboard() {
                 </div>
               </div>
 
-              {/* היסטוריית עימותים (הזירה) */}
               <div>
                 <h3 className="font-black text-xs mb-3 flex items-center gap-2 uppercase tracking-wider text-muted-foreground"><Swords size={14} className="text-red-500"/> היסטוריית זירה</h3>
                 <div className="space-y-2">
@@ -299,7 +295,6 @@ export function Leaderboard() {
                 </div>
               </div>
 
-              {/* היסטוריית הימורים */}
               <div>
                 <h3 className="font-black text-xs mb-3 flex items-center gap-2 uppercase tracking-wider text-muted-foreground"><Target size={14} className="text-primary"/> הימורי משחקים</h3>
                 <div className="space-y-2">
