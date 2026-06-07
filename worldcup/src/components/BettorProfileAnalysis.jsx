@@ -41,8 +41,9 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
       // 3. חישוב סטטיסטיקות
       let drawBets = 0, totalPredictedGoals = 0, totalActualGoals = 0, bullseyeHits = 0, trendHits = 0;
       completedBets.forEach(b => {
-        const homeBet = parseInt(b.home_bet) || 0;
-        const awayBet = parseInt(b.away_bet) || 0;
+        // תדביק את זה:
+        const homeBet = parseInt(b.home_score) || 0;
+        const awayBet = parseInt(b.away_score) || 0;
         const homeScore = parseInt(b.match.home_score) || 0;
         const awayScore = parseInt(b.match.away_score) || 0;
 
