@@ -67,7 +67,7 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
       setStats(calculatedStats);
 
       // 4. שליחה ל-Gemini
-      const prompt = `אתה פסיכולוג ספורט ואנליסט נתונים מקצועי אך קליל ומשעשע. 
+     const prompt = `אתה פסיכולוג ספורט ואנליסט נתונים מקצועי אך קליל ומשעשע. 
       המשימה שלך היא לנתח את "אסטרטגיית ההימורים" של השחקן: ${player.nickname || player.email.split('@')[0]}.
       
       הנה הנתונים שלו:
@@ -77,9 +77,9 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
       - אחוז הימורים על תיקו: ${calculatedStats.drawRate}%
       - ממוצע שערים מנוחש למשחק: ${calculatedStats.avgPredictedGoals} (לעומת ${calculatedStats.avgActualGoals} במציאות)
       
-      כתוב ניתוח פרופיל פסיכולוגי קצר (2 פסקאות) על סגנון ההימורים שלו. האם הוא פחדן שהולך על תיקו? הרפתקן שחוזה משחקים רבי שערים? האם הוא קורא את המציאות נכון?
-      תהיה חכם, מעניין, עם קצת הומור ספורטיבי, אבל **אל תעשה טראש-טוק (Roast)** - המטרה היא ניתוח אופי חכם של סגנון המשחק שלו בסלנג של חבר'ה.
-      חשוב: כתוב טקסט נקי לחלוטין, ללא כוכביות (**) וללא עיצוב.`;
+      כתוב ניתוח פרופיל פסיכולוגי סופר-קצר, מהיר וקולע (פסקה אחת בלבד, מקסימום 3 משפטים) על סגנון ההימורים שלו. בסלנג של חבר'ה, תגיד האם הוא פחדן, הרפתקן או קורא את המציאות נכון.
+      תהיה חכם ומעניין, אבל אל תעשה טראש-טוק (Roast).
+      חשוב: כתוב טקסט נקי לחלוטין, ללא כוכביות (**) וללא שבירות שורה מיותרות.`;
       
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
         method: 'POST',
