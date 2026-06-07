@@ -165,13 +165,13 @@ export default function BettorProfileAnalysis({ player, currentUser }) {
   }
 
   if (!stats || stats.totalBets === 0) {
-    return (
-      <div className="p-8 text-center bg-muted/30 border border-border rounded-2xl text-muted-foreground text-xs">
-        <AlertCircle className="mx-auto mb-2 opacity-60" size={24} />
-        אין מספיק הימורים נעולים או משחקים שהסתיימו כדי לבנות פרופיל מהמר עבור משתמש זה.
-      </div>
-    );
-  }
+  return (
+    <div className="p-6 text-center bg-card border border-border rounded-2xl text-muted-foreground text-sm">
+      <Brain className="mx-auto mb-3 text-primary" size={32} />
+      <p>{analysis || "עדיין אין מספיק נתונים לניתוח פסיכולוגי. המוח הדיגיטלי מחכה לראות מה אתה שווה!"}</p>
+    </div>
+  );
+}
 
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
