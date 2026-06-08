@@ -57,6 +57,9 @@ export default function CommentatorBot() {
       });
 
       if (!res.ok) {
+        if (res.status === 429) {
+          throw new Error('RATE_LIMIT');
+        }
         console.error("API Error - check network or console");
         throw new Error('API Error');
       }
@@ -67,7 +70,11 @@ export default function CommentatorBot() {
       setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
     } catch (err) {
       console.error("Chat Error:", err);
-      setMessages(prev => [...prev, { role: 'assistant', text: "יש לי תקלה בשידור מהאולפן... נסה לנסח את השאלה טיפה אחרת." }]);
+      if (err.message === 'RATE_LIMIT') {
+        setMessages(prev => [...prev, { role: 'assistant', text: "חביבי, אתה שואל בקצב של מכונת ירייה והרשת עמוסה. תן לי כמה שניות לנשום ותשאל שוב." }]);
+      } else {
+        setMessages(prev => [...prev, { role: 'assistant', text: "יש לי תקלה בשידור מהאולפן... נסה לנסח את השאלה טיפה אחרת." }]);
+      }
     } finally {
       setIsLoading(false);
     }
