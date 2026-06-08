@@ -41,7 +41,7 @@ export default function TrashTalkBtn({ player, currentUser }) {
       הנה הנתונים על ההימורים האחרונים שלו: ${betsContext}.
       כתוב עקיצה קצרה, פוגענית (אך בצחוק של חבר'ה), מדויקת ועסיסית (עד 3-4 משפטים) שתרסק לו את האגו. תשתמש בסלנג ישראלי של מגרשים, ציניות קיצונית ואימוג'ים מתאימים. אל תהיה מנומס בשום צורה, תרד עליו חזק על סמך ההימורים שלו (אם הוא פישל) או על זה שיש לו מזל של טירונים (אם הוא פגע).`;
 
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${GEMINI_API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
