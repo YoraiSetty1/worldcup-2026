@@ -25,6 +25,10 @@ export default function CommentatorBot() {
     if (!input.trim() || isLoading) return;
     
     const userMsg = input.trim();
+    
+    // --- שולפים את היסטוריית השיחה לזיכרון הבוט ---
+    const chatHistory = messages.slice(1).map(m => `${m.role === 'user' ? 'משתמש' : 'פרשן'}: ${m.text}`).join('\n');
+    
     setInput('');
     setMessages(prev => [...prev, { role: 'user', text: userMsg }]);
     setIsLoading(true);
@@ -39,9 +43,11 @@ export default function CommentatorBot() {
       תן תשובה קצרה, ברורה וקולעת (עד 3-4 משפטים).
       חשוב: אל תשתמש בשום עיצוב, ללא כוכביות וללא שבירות שורה מיותרות.
       
-      השאלה: ${userMsg}`;
+      שים לב! זוהי היסטוריית השיחה שלנו עד כה. השתמש בה כדי להבין הקשרים (כמו "הוא", "אותה נבחרת" וכו'):
+      ${chatHistory}
+      
+      השאלה החדשה של המשתמש: ${userMsg}`;
 
-      // שים לב שהוספנו כאן את ה-safetySettings שמכבים את הצנזורה
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
