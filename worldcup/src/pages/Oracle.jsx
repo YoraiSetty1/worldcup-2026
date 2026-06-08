@@ -56,7 +56,7 @@ export default function Oracle() {
       // הפרומפט שופר כדי למנוע סתירות לוגיות לחלוטין
       const prompt = `אתה אנליסט נתוני ספורט ומומחה הימורי כדורגל עבור אפליקציית טורניר חברים. נתח את המשחק הבא: קבוצת בית (Home) ${match.home_team_name} נגד קבוצת חוץ (Away) ${match.away_team_name}. תחשוב על יחסי כוחות עכשוויים, פצועים, נתונים מאתרי הימורים בעולם וסטטיסטיקה. החזר לי תשובה בפורמט JSON טהור בלבד. השדות שחובה להחזיר: home_win_pct (מספר), draw_pct (מספר), away_win_pct (מספר), predicted_score (מחרוזת בדיוק בפורמט "Home-Away", למשל "2-0" או "1-1". חובה שהתוצאה תשקף במדויק את האחוזים! אם קבוצת הבית עדיפה באחוזים היא חייבת לנצח בתוצאה), analysis (טקסט קצר בעברית של 2-3 משפטים עם המלצת הימור).`;
 
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite:generateContent?key=${GEMINI_API_KEY}`;
       
       const res = await fetch(geminiUrl, {
         method: 'POST',
