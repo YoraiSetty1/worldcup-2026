@@ -21,7 +21,9 @@ export function Leaderboard() {
     const CACHE_KEY = 'leaderboard_cache_v1';
     const CACHE_TIME = 1000 * 60 * 5; 
 
-    if (!forceRefresh) {
+    if (forceRefresh) {
+      sessionStorage.removeItem(CACHE_KEY);
+    } else {
       const cachedString = sessionStorage.getItem(CACHE_KEY);
       if (cachedString) {
         const cached = JSON.parse(cachedString);
@@ -44,7 +46,8 @@ export function Leaderboard() {
         supabase.from('leaderboard_view').select('*'), 
         betsApi.listAll(),
         supabase.from('daily_matchups').select('*'), 
-        supabase.from('matches').select('*')
+        supabase.from('matches').select('*'),
+        forceRefresh ? new Promise(resolve => setTimeout(resolve, 600)) : Promise.resolve()
       ]);
       
       const leaderboardData = viewData || [];
