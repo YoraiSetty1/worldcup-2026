@@ -31,27 +31,43 @@ export default function CommentatorBot() {
 
     try {
       const prompt = `אתה אנליסט וסטטיסטיקאי כדורגל מקצועי ורציני, מומחה למונדיאל 2026 וטורנירים בינלאומיים.
+      מידע זמן קריטי: אנחנו כעת ביוני 2026. הגרלת הבתים של מונדיאל 2026 כבר התקיימה מזמן, כל הנבחרות שובצו לבתים, ולוח המשחקים סגור וידוע. בשום אופן אל תגיד שההגרלה טרם התקיימה או שאין לך מידע.
       ענה על השאלה של המשתמש בצורה עניינית, מדויקת ומקצועית, ללא ציניות, ללא הומור וללא סלנג.
-      אם השאלה נוגעת לעתיד, תחזיות או פייבוריטיות, ענה בהתבסס על דירוג פיפ"א, יחסי כוחות נוכחיים בכדורגל העולמי ודעת מומחים.
-      אם השאלה היסטורית, ספק נתונים היסטוריים אמיתיים.
+      דגש קריטי: מדובר במונדיאל שמשוחק במגרשים ניטרליים. אין יתרון ביתיות לאף נבחרת (מלבד המארחות ארה"ב, מקסיקו וקנדה), ולכן אל תחשב ואל תזכיר יתרון בית או חוץ בניתוחים שלך.
+      אם השאלה נוגעת לעתיד הטורניר, ענה בהתבסס על דירוג פיפ"א, כושר נוכחי ויחסי כוחות נטו.
+      אם השאלה היסטורית, ספק נתונים היסטוריים מדויקים.
       תן תשובה קצרה, ברורה וקולעת (עד 3-4 משפטים).
       חשוב: אל תשתמש בשום עיצוב, ללא כוכביות וללא שבירות שורה מיותרות.
       
       השאלה: ${userMsg}`;
 
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      // שים לב שהוספנו כאן את ה-safetySettings שמכבים את הצנזורה
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+        body: JSON.stringify({ 
+          contents: [{ parts: [{ text: prompt }] }],
+          safetySettings: [
+            { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+          ]
+        })
       });
 
-      if (!res.ok) throw new Error('API Error');
+      if (!res.ok) {
+        console.error("API Error - check network or console");
+        throw new Error('API Error');
+      }
+      
       const data = await res.json();
-      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "וואלה אין לי מושג, המיקרופון שלי עושה בעיות. תשאל שוב.";
+      const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "משהו בשאלה הזו סונן על ידי המערכת, נסה לנסח טיפה אחרת.";
 
       setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
     } catch (err) {
-      setMessages(prev => [...prev, { role: 'assistant', text: "יש לי תקלה בשידור מהאולפן... נסה שוב עוד רגע." }]);
+      console.error("Chat Error:", err);
+      setMessages(prev => [...prev, { role: 'assistant', text: "יש לי תקלה בשידור מהאולפן... נסה לנסח את השאלה טיפה אחרת." }]);
     } finally {
       setIsLoading(false);
     }
