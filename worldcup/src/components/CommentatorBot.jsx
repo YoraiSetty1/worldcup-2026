@@ -11,6 +11,7 @@ export default function CommentatorBot() {
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0); 
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -21,12 +22,18 @@ export default function CommentatorBot() {
     scrollToBottom();
   }, [messages, isOpen]);
 
+  useEffect(() => {
+    if (cooldown > 0) {
+      const timer = setTimeout(() => setCooldown(prev => prev - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [cooldown]);
+
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isLoading || cooldown > 0) return;
     
     const userMsg = input.trim();
     
-    // --- שולפים את היסטוריית השיחה לזיכרון הבוט ---
     const chatHistory = messages.slice(1).map(m => `${m.role === 'user' ? 'משתמש' : 'פרשן'}: ${m.text}`).join('\n');
     
     setInput('');
@@ -74,12 +81,15 @@ export default function CommentatorBot() {
       const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "משהו בשאלה הזו סונן על ידי המערכת, נסה לנסח טיפה אחרת.";
 
       setMessages(prev => [...prev, { role: 'assistant', text: reply }]);
+      setCooldown(20); // נעילה ל-20 שניות אחרי תשובה מוצלחת
     } catch (err) {
       console.error("Chat Error:", err);
       if (err.message === 'RATE_LIMIT') {
-        setMessages(prev => [...prev, { role: 'assistant', text: "חביבי, אתה שואל בקצב של מכונת ירייה והרשת עמוסה. תן לי כמה שניות לנשום ותשאל שוב." }]);
+        setMessages(prev => [...prev, { role: 'assistant', text: "הקו לאולפן קצת עמוס כרגע. תן לי כמה שניות וננסה שוב." }]);
+        setCooldown(20); // גם בעומס ננעל ל-20 שניות
       } else {
         setMessages(prev => [...prev, { role: 'assistant', text: "יש לי תקלה בשידור מהאולפן... נסה לנסח את השאלה טיפה אחרת." }]);
+        setCooldown(5); // בשגיאה רגילה נשחרר אחרי 5 שניות
       }
     } finally {
       setIsLoading(false);
@@ -139,13 +149,14 @@ export default function CommentatorBot() {
                 value={input} 
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
-                placeholder="שאל את הפרשן..."
-                className="flex-1 bg-muted border-none rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                placeholder={cooldown > 0 ? `הפרשן שותה מים... (${cooldown})` : "שאל את הפרשן..."}
+                disabled={isLoading || cooldown > 0}
+                className="flex-1 bg-muted border-none rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               />
               <button 
                 onClick={handleSend} 
-                disabled={isLoading || !input.trim()}
-                className="bg-primary text-primary-foreground p-2.5 rounded-xl disabled:opacity-50 hover:bg-primary/90 transition-colors"
+                disabled={isLoading || cooldown > 0 || !input.trim()}
+                className="bg-primary text-primary-foreground p-2.5 rounded-xl disabled:opacity-50 hover:bg-primary/90 transition-colors disabled:cursor-not-allowed"
               >
                 <Send size={18} className="rotate-180" />
               </button>
