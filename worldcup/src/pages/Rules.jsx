@@ -92,16 +92,19 @@ export default function Rules() {
 
       {/* חלק 5: בינה מלאכותית */}
       <RuleSection icon={BrainCircuit} title="כלי בינה מלאכותית (AI) באפליקציה" color="bg-indigo-500/10 text-indigo-600">
-        <p className="mb-3">האפליקציה מחוברת ל-Gemini AI שמנתח את הטורניר בזמן אמת. תמצאו באפליקציה 3 כלי AI:</p>
-        <ul className="list-disc list-inside space-y-3 pr-2">
+        <p className="mb-3">האפליקציה מחוברת ל-Gemini AI שמנתח את הטורניר בזמן אמת. תמצאו באפליקציה 4 כלי AI מובנים:</p>
+        <ul className="list-disc list-inside space-y-4 pr-2">
           <li>
-            <span className="text-foreground font-bold">האורקל (Oracle):</span> במסך המשחקים תמצאו את האורקל. הוא מנתח יחסי כוחות נטו (בלי יתרון ביתיות) ונותן לכם את ההסתברויות לניצחון, תיקו, או הפסד לכל משחק, כולל המלצת תוצאה מדויקת.
+            <span className="text-foreground font-bold">האורקל (Oracle):</span> במסך המשחקים תמצאו את כפתור האורקל. הוא מנתח יחסי כוחות נטו ומציג את הסתברויות האחוזים לכל משחק יחד עם תוצאה משוערת, ללא הטיות ביתיות.
           </li>
           <li>
-            <span className="text-foreground font-bold">עיתון הבוקר (Morning Paper):</span> בכל כניסה לדשבורד, ה-AI כותב לכם עיתון יומי שובב שמסכם את הפאדיחות של אתמול, מי מוביל בטבלה, ואת המשחקים שמחכים לכם היום.
+            <span className="text-foreground font-bold">היועץ הסטטיסטי (אייקון הבועה 💬):</span> מופיע ליד כל משחק במסך המשחקים. לחיצה עליו תפתח ניתוח עומק טקטי מורחב מבוסס AI על המשחק הספציפי – כולל בדיקת פצועים, מומנטום, כושר נוכחי ונתונים מאתרי הימורים מובילים בעולם שיעזרו לכם לנעול ניחוש מושכל.
           </li>
           <li>
-            <span className="text-foreground font-bold">ניתוח פרופיל (Profile Analysis):</span> לחיצה על כל שחקן בטבלת המובילים תפתח את הפרופיל שלו, שם ה-AI ינתח באכזריות את אסטרטגיית ההימורים שלו (האם הוא שמרן, מהמר על תיקו, או סתם זורק ניחושים).
+            <span className="text-foreground font-bold">עיתון הבוקר (Morning Paper):</span> הבאנר המרכזי שמופיע בדשבורד הראשי שלכם מדי יום. ה-AI מייצר בכל בוקר סקירה שנונה ושובבה שמסכמת את הניחושים של אתמול, צוחקת על מי שפישל, ומנתחת את הלו"ז היומי.
+          </li>
+          <li>
+            <span className="text-foreground font-bold">ניתוח פרופיל (Profile Analysis):</span> לחיצה על שמו של כל משתתף בטבלת המובילים תפתח פופ-אפ אישי, שבו ה-AI מנתח לעומק את דפוסי ההימורים שלו (האם הוא מהמר שמרן, הרפתקן, או כזה שרק מחפש הפתעות).
           </li>
         </ul>
       </RuleSection>
