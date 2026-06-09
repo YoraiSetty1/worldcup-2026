@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useOutletContext, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Trophy, Target, Swords, Calendar, ChevronLeft, Clock } from 'lucide-react';
+import { Trophy, Target, Swords, Calendar, ChevronLeft, Clock, Flame } from 'lucide-react';
 import { matchesApi, profilesApi, betsApi, supabase } from '../lib/supabase.js';
 import MatchCard from '../components/MatchCard';
 import Onboarding from './Onboarding';
 import MorningPaper from '../components/MorningPaper';
-import TrashTalkBtn from '../components/TrashTalkBtn'; // הוספנו את הייבוא של הכפתור פה
+import TrashTalkBtn from '../components/TrashTalkBtn';
 import moment from 'moment';
 
 export default function Dashboard() {
@@ -14,6 +14,7 @@ export default function Dashboard() {
   const [matches, setMatches] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
   const [myBets, setMyBets] = useState([]);
+  const [activeRoast, setActiveRoast] = useState(null);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState(moment().format('HH:mm:ss'));
 
@@ -25,16 +26,18 @@ export default function Dashboard() {
 
   const loadData = async () => {
     setLoading(true);
-    const [matchList, profiles, allBets, myBetList, { data: allMatchups }] = await Promise.all([
+    const [matchList, profiles, allBets, myBetList, { data: allMatchups }, { data: latestRoast }] = await Promise.all([
       matchesApi.list(),
       profilesApi.list(),
       betsApi.listAll(),
       user?.email ? betsApi.forUser(user.email) : [],
-      supabase.from('daily_matchups').select('winner_email')
+      supabase.from('daily_matchups').select('winner_email'),
+      supabase.from('roasts').select('target_nickname').eq('status', 'pending').order('created_at', { ascending: false }).limit(1).maybeSingle()
     ]);
     
     setMatches(matchList);
     setMyBets(myBetList);
+    setActiveRoast(latestRoast);
     
     const pointsMap = {};
     
@@ -117,6 +120,24 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
+      {/* באנר ה-Roast שקופץ רק כשיש מישהו על המוקד! */}
+      {activeRoast && (
+        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="bg-gradient-to-r from-orange-500 to-red-600 text-white p-4 rounded-2xl shadow-lg flex items-center justify-between animate-pulse">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/20 p-2 rounded-full">
+              <Flame size={24} className="text-yellow-300" />
+            </div>
+            <div>
+              <h3 className="font-black text-lg leading-none mb-1">זירת ה-ROAST בוערת!</h3>
+              <p className="text-xs opacity-90">מישהו פתח חזית על {activeRoast.target_nickname}.</p>
+            </div>
+          </div>
+          <Link to="/roasts" className="bg-white text-red-600 font-black px-4 py-2 rounded-xl hover:bg-red-50 transition-colors text-sm shrink-0 shadow-sm">
+            לזירה
+          </Link>
+        </motion.div>
+      )}
+
       {/* הנה עיתון הבוקר שלנו! */}
       <MorningPaper />
 
@@ -172,7 +193,6 @@ export default function Dashboard() {
                   </span>
                 </div>
                 
-                {/* כאן הוספנו את הכפתור ליד הניקוד! */}
                 <div className="flex items-center gap-3">
                   <span className="font-black text-lg text-primary">{entry.total_points}</span>
                   <TrashTalkBtn player={entry} currentUser={user} />

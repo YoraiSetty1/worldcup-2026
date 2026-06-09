@@ -59,6 +59,20 @@ export function Roasts() {
         user_email: user.email
       });
 
+      // ג. שליחת התראה לצ'אט הכללי בשם המערכת
+      try {
+        const attackerName = user.nickname || user.email.split('@')[0];
+        const victimName = target.nickname || target.email.split('@')[0];
+        
+        await supabase.from('chat_messages').insert([{
+          user_email: "system@bot.com",
+          user_nickname: "🔥 זירת ה-ROAST",
+          message: `🚨 חזית חדשה נפתחה! ${attackerName} הרגע התחיל ROAST על ${victimName}. כנסו לדף ה-ROAST להצטרף אם אתם מאמינים שהוא באמת כישלון! ⚔️`
+        }]);
+      } catch (chatErr) {
+        console.error("Error sending roast alert to chat:", chatErr);
+      }
+
       setShowCreateModal(false);
       loadData();
     } catch (err) {
