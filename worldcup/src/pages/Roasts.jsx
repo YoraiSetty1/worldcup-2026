@@ -8,6 +8,7 @@ export function Roasts() {
   const { user } = useOutletContext();
   const [roasts, setRoasts] = useState([]);
   const [profiles, setProfiles] = useState([]);
+  const [allProfiles, setAllProfiles] = useState([]); // שומר את כולם כולל אותנו כדי למשוך כינויים
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -22,11 +23,13 @@ export function Roasts() {
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      // 2. שליפת רשימת החברים מלוח הדירוג הקיים כדי לבחור קורבן
+      // 2. שליפת רשימת החברים מלוח הדירוג הקיים כדי לבחור קורבן ולמשוך שמות
       const { data: viewData } = await supabase.from('leaderboard_view').select('email, nickname');
+      const fetchedProfiles = viewData || [];
 
       setRoasts(roastsData || []);
-      setProfiles((viewData || []).filter(p => p.email !== user?.email)); // לא מעלים את עצמנו למוקד
+      setAllProfiles(fetchedProfiles);
+      setProfiles(fetchedProfiles.filter(p => p.email !== user?.email)); // לפופ-אפ של "העלה למוקד"
     } catch (err) {
       console.error('Error loading roasts:', err);
     } finally {
@@ -134,6 +137,17 @@ export function Roasts() {
           roasts.map(roast => {
             const votesCount = roast.roast_votes?.length || 0;
             const hasVoted = roast.roast_votes?.some(v => v.user_email === user?.email);
+            const isVictim = roast.target_email === user?.email; // האם המשתמש הוא המטרה של הרוסט?
+            
+            // מציאת השם של מי שפתח את הרוסט
+            const creatorProfile = allProfiles.find(p => p.email === roast.creator_email);
+            const creatorName = creatorProfile?.nickname || roast.creator_email.split('@')[0];
+
+            // בניית רשימת השמות של מי שחתם
+            const votersNames = (roast.roast_votes || []).map(v => {
+              const p = allProfiles.find(prof => prof.email === v.user_email);
+              return p?.nickname || v.user_email.split('@')[0];
+            }).join(', ');
 
             return (
               <motion.div key={roast.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-card border border-border rounded-2xl p-4 shadow-sm relative overflow-hidden">
@@ -142,7 +156,7 @@ export function Roasts() {
                     <h3 className="font-black text-base flex items-center gap-1.5 text-card-foreground">
                       <Skull size={16} className="text-red-500" /> {roast.target_nickname}
                     </h3>
-                    <span className="text-[10px] text-muted-foreground font-medium">הועלה על ידי {roast.creator_email.split('@')[0]}</span>
+                    <span className="text-[10px] text-muted-foreground font-medium">הועלה על ידי {creatorName}</span>
                   </div>
                   <div className="text-xs font-black bg-red-500/10 text-red-600 px-2 py-1 rounded-lg flex items-center gap-1">
                     <Users size={12} /> {votesCount}/5 חתמו
@@ -150,12 +164,33 @@ export function Roasts() {
                 </div>
 
                 {/* מד התקדמות ההצבעות */}
-                <div className="w-full bg-muted h-2.5 rounded-full mb-4 overflow-hidden border border-border/40">
+                <div className="w-full bg-muted h-2.5 rounded-full mb-3 overflow-hidden border border-border/40">
                   <motion.div className="bg-gradient-to-r from-orange-500 to-red-600 h-full" initial={{ width: 0 }} animate={{ width: `${(votesCount / 5) * 100}%` }} />
                 </div>
+                
+                {/* רשימת מי שכבר חתם */}
+                {votesCount > 0 && (
+                  <div className="text-[10px] text-muted-foreground mb-4 font-medium pr-1">
+                     <span className="font-bold text-red-500">חתמו:</span> {votersNames}
+                  </div>
+                )}
 
-                <button onClick={() => handleVote(roast.id)} disabled={hasVoted} className={`w-full py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 ${hasVoted ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 'bg-red-600 text-white hover:bg-red-700 shadow-md shadow-red-600/10'}`}>
-                  {hasVoted ? ( <> <Check size={14} /> חתמת על העצומה </>) : ( <> <Flame size={14} /> גם אני חושב שהוא יכשל היום </>)}
+                <button 
+                  onClick={() => handleVote(roast.id)} 
+                  disabled={hasVoted || isVictim} 
+                  className={`w-full py-2.5 rounded-xl font-black text-xs transition-all flex items-center justify-center gap-1.5 ${
+                    isVictim ? 'bg-muted text-muted-foreground border border-border cursor-not-allowed' :
+                    hasVoted ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20' : 
+                    'bg-red-600 text-white hover:bg-red-700 shadow-md shadow-red-600/10'
+                  }`}
+                >
+                  {isVictim ? (
+                     <> <AlertTriangle size={14} /> לא ניתן לחתום נגד עצמך 🤡 </>
+                  ) : hasVoted ? ( 
+                     <> <Check size={14} /> חתמת על העצומה </>
+                  ) : ( 
+                     <> <Flame size={14} /> גם אני חושב שהוא יכשל היום </>
+                  )}
                 </button>
               </motion.div>
             );
