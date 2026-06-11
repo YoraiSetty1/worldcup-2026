@@ -15,8 +15,16 @@ export default async function handler(req, res) {
   const SEASON = 2026; 
 
   try {
-    const url = `https://api.football-data.org/v4/competitions/${COMPETITION}/matches?season=${SEASON}`;
-    const response = await fetch(url, { headers: { 'X-Auth-Token': API_KEY } });
+    // ריסוק המטמון של Vercel - הוספת חותמת זמן כדי שכל קריאה תהיה חדשה לגמרי
+    const timestamp = Date.now();
+    const url = `https://api.football-data.org/v4/competitions/${COMPETITION}/matches?season=${SEASON}&nocache=${timestamp}`;
+    
+    // שליחת פקודת no-store שמונעת מ-Vercel למחזר תשובות ישנות
+    const response = await fetch(url, { 
+      headers: { 'X-Auth-Token': API_KEY },
+      cache: 'no-store' 
+    });
+    
     const data = await response.json();
 
     if (data.errorCode) return res.status(403).json({ error: data.message });
@@ -42,12 +50,12 @@ export default async function handler(req, res) {
       let homeScore = getScore('home');
       let awayScore = getScore('away');
 
-      // כאן המערכת לוכדת את הנתונים הגולמיים של ה-API עבור משחקים שהסתיימו או משוחקים כרגע
+      // כאן המערכת לוכדת את הנתונים הגולמיים של ה-API
       if (match.status === 'FINISHED' || match.status === 'IN_PLAY' || match.status === 'PAUSED') {
          debugMatch = {
             teams: `${match.homeTeam?.name} vs ${match.awayTeam?.name}`,
             apiStatus: match.status,
-            rawScoreFromAPI: match.score, // כאן נראה מה ה-API באמת מחזיר!
+            rawScoreFromAPI: match.score,
             savedHome: homeScore,
             savedAway: awayScore
          };
@@ -72,7 +80,6 @@ export default async function handler(req, res) {
       }
     }
 
-    // הפלט הזה יופיע בדפדפן שלך כשתריץ את הקישור
     return res.status(200).json({ 
       message: `Success! Processed ${data.matches.length} matches. Errors: ${errorsCount}`, 
       investigation: debugMatch || "No recent matches to debug"
