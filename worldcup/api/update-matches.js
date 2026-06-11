@@ -14,72 +14,72 @@ export default async function handler(req, res) {
   const COMPETITION = 'WC'; 
 
   try {
-    // --- השינוי הקריטי ---
-    // הגדרת חלון זמן של אתמול עד מחר כדי להכריח את ה-API למשוך נתוני לייב
+    // הגדרת חלון זמן כדי למשוך נתוני לייב מהשרת המהיר של ה-API
     const now = new Date();
-    const yesterday = new Date(now);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const tomorrow = new Date(now);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
+    const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
+    const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
     const dateFrom = yesterday.toISOString().split('T')[0];
     const dateTo = tomorrow.toISOString().split('T')[0];
 
-    // הכתובת החדשה שפונה לנתונים החיים של הימים הספציפיים
     const url = `https://api.football-data.org/v4/competitions/${COMPETITION}/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`;
     
     const response = await fetch(url, { 
       headers: { 'X-Auth-Token': API_KEY },
-      cache: 'no-store'
+      cache: 'no-store' 
     });
     
     const data = await response.json();
 
     if (data.errorCode) return res.status(403).json({ error: data.message });
-    if (!data.matches || data.matches.length === 0) return res.status(200).json({ message: 'No live matches in window' });
-
-    let errorsCount = 0;
+    if (!data.matches || data.matches.length === 0) return res.status(200).json({ message: 'No live matches' });
 
     for (const match of data.matches) {
-      const internalStage = match.stage === 'GROUP_STAGE' || match.group ? 'group' : 'knockout';
-
+      // 1. שליפה חכמה של התוצאה מה-API
       const getScore = (team) => {
         if (!match.score) return null;
         const s = match.score;
-        if (s.penalties && s.penalties[team] != null) return s.penalties[team];
-        if (s.extraTime && s.extraTime[team] != null) return s.extraTime[team];
-        if (s.fullTime && s.fullTime[team] != null) return s.fullTime[team];
-        if (s.regularTime && s.regularTime[team] != null) return s.regularTime[team];
-        if (s.halfTime && s.halfTime[team] != null) return s.halfTime[team];
-        return null;
+        return s.penalties?.[team] ?? s.extraTime?.[team] ?? s.fullTime?.[team] ?? s.regularTime?.[team] ?? s.halfTime?.[team] ?? null;
       };
 
-      let homeScore = getScore('home');
-      let awayScore = getScore('away');
+      const newHomeScore = getScore('home');
+      const newAwayScore = getScore('away');
+      const newStatus = match.status.toLowerCase();
 
-      const { error } = await supabase.from('matches').upsert({
+      // 2. שכבת הגנה: בודקים מה כבר קיים ב-Supabase
+      const { data: existingMatch } = await supabase
+        .from('matches')
+        .select('status, home_score, away_score')
+        .eq('api_id', match.id)
+        .single();
+
+      // אם המשחק כבר נגמר בבסיס הנתונים שלנו, אל תיתן ל-API העצלן למחוק את התוצאה
+      let finalStatus = newStatus;
+      let finalHomeScore = newHomeScore;
+      let finalAwayScore = newAwayScore;
+
+      if (existingMatch && (existingMatch.status === 'finished' || existingMatch.status === 'ft') && newStatus === 'timed') {
+        finalStatus = existingMatch.status;
+        finalHomeScore = existingMatch.home_score;
+        finalAwayScore = existingMatch.away_score;
+      }
+
+      // 3. עדכון הנתונים
+      await supabase.from('matches').upsert({
         api_id: match.id,
         home_team_name: match.homeTeam.shortName || match.homeTeam.name,
         away_team_name: match.awayTeam.shortName || match.awayTeam.name,
         home_flag: match.homeTeam.crest,
         away_flag: match.awayTeam.crest,
-        home_score: homeScore,
-        away_score: awayScore,
-        status: match.status.toLowerCase(),
+        home_score: finalHomeScore,
+        away_score: finalAwayScore,
+        status: finalStatus,
         kickoff_time: match.utcDate,
-        stage: internalStage,
+        stage: match.stage === 'GROUP_STAGE' || match.group ? 'group' : 'knockout',
         group_name: match.group
       }, { onConflict: 'api_id' });
-
-      if (error) {
-        errorsCount++;
-      }
     }
 
-    return res.status(200).json({ 
-      message: `Success! Processed ${data.matches.length} LIVE matches. Errors: ${errorsCount}`,
-      rawSample: data.matches.length > 0 ? { status: data.matches[0].status, score: data.matches[0].score } : null
-    });
+    return res.status(200).json({ message: "Update successful" });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
