@@ -38,8 +38,20 @@ export default async function handler(req, res) {
       // זיהוי שלב: אם יש 'group' בנתונים של ה-API, זה משחק בית.
       const internalStage = match.stage === 'GROUP_STAGE' || match.group ? 'group' : 'knockout';
 
-      const homeScore = match.score?.fullTime?.home;
-      const awayScore = match.score?.fullTime?.away;
+      // משיכת התוצאה החכמה: סורק את כל סוגי התוצאות מה-API (פנדלים, הארכה, רגיל, לייב)
+      const getScore = (team) => {
+        if (!match.score) return null;
+        const s = match.score;
+        if (s.penalties && s.penalties[team] !== null) return s.penalties[team];
+        if (s.extraTime && s.extraTime[team] !== null) return s.extraTime[team];
+        if (s.fullTime && s.fullTime[team] !== null) return s.fullTime[team];
+        if (s.regularTime && s.regularTime[team] !== null) return s.regularTime[team];
+        if (s.halfTime && s.halfTime[team] !== null) return s.halfTime[team];
+        return null;
+      };
+
+      const homeScore = getScore('home');
+      const awayScore = getScore('away');
 
       const { error } = await supabase.from('matches').upsert({
         api_id: match.id,
