@@ -6,42 +6,78 @@ const supabase = createClient(
 );
 
 export default async function handler(req, res) {
-  const API_KEY = process.env.VITE_API_SPORTS_KEY;
-  const now = new Date();
-  const dateFrom = new Date(now.getTime() - 86400000).toISOString().split('T')[0];
-  const dateTo = new Date(now.getTime() + 86400000).toISOString().split('T')[0];
-
-  const url = `https://api.football-data.org/v4/competitions/WC/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`;
-  const response = await fetch(url, { headers: { 'X-Auth-Token': API_KEY } });
-  const data = await response.json();
-
-  if (!data.matches) return res.status(200).json({ error: "No matches found" });
-
-  let results = [];
-  for (const match of data.matches) {
-    const homeScore = match.score?.fullTime?.home ?? match.score?.regularTime?.home ?? null;
-    const awayScore = match.score?.fullTime?.away ?? match.score?.regularTime?.away ?? null;
-    
-    // כאן אנחנו בודקים בדיוק איזה ID הוא מנסה לעדכן
-    const upsertData = {
-      api_id: match.id,
-      home_team_name: match.homeTeam.shortName,
-      away_team_name: match.awayTeam.shortName,
-      home_score: homeScore,
-      away_score: awayScore,
-      status: match.status.toLowerCase()
-    };
-
-    const { data: dbMatch, error } = await supabase.from('matches').upsert(upsertData, { onConflict: 'api_id' });
-    
-    results.push({
-      id: match.id,
-      teams: `${match.homeTeam.shortName} - ${match.awayTeam.shortName}`,
-      score: `${homeScore}-${awayScore}`,
-      status: match.status,
-      error: error ? error.message : "Success"
-    });
+  if (!process.env.VITE_SUPABASE_URL || !process.env.VITE_API_SPORTS_KEY) {
+    return res.status(500).json({ error: "Missing environment variables" });
   }
 
-  return res.status(200).json({ results });
+  const API_KEY = process.env.VITE_API_SPORTS_KEY;
+  const COMPETITION = 'WC'; 
+  const SEASON = 2026; 
+
+  try {
+    const timestamp = Date.now();
+    const url = `https://api.football-data.org/v4/competitions/${COMPETITION}/matches?season=${SEASON}&nocache=${timestamp}`;
+    
+    const response = await fetch(url, { 
+      headers: { 'X-Auth-Token': API_KEY },
+      cache: 'no-store' 
+    });
+    
+    const data = await response.json();
+    if (data.errorCode) return res.status(403).json({ error: data.message });
+    if (!data.matches) return res.status(200).json({ message: 'No matches found' });
+
+    let errorsCount = 0;
+
+    for (const match of data.matches) {
+      // 1. קבלת התוצאה מה-API
+      const getScore = (team) => {
+        if (!match.score) return null;
+        const s = match.score;
+        return s.penalties?.[team] ?? s.extraTime?.[team] ?? s.fullTime?.[team] ?? s.regularTime?.[team] ?? s.halfTime?.[team] ?? null;
+      };
+
+      const apiHome = getScore('home');
+      const apiAway = getScore('away');
+      const apiStatus = match.status.toLowerCase();
+
+      // 2. קבלת הנתונים הקיימים מה-DB (כדי לא לדרוס בטעות)
+      const { data: existingMatch } = await supabase
+        .from('matches')
+        .select('home_score, away_score, status')
+        .eq('api_id', match.id)
+        .single();
+
+      // 3. לוגיקת החלטה: האם לעדכן?
+      // אם ב-DB יש כבר תוצאה וה-API שולח NULL, אל תעדכן.
+      let finalHome = apiHome !== null ? apiHome : (existingMatch?.home_score ?? null);
+      let finalAway = apiAway !== null ? apiAway : (existingMatch?.away_score ?? null);
+      
+      // אם המשחק נגמר ב-DB, אל תיתן לו לחזור להיות TIMED
+      let finalStatus = apiStatus;
+      if (existingMatch && (existingMatch.status === 'finished' || existingMatch.status === 'ft') && apiStatus === 'timed') {
+        finalStatus = existingMatch.status;
+      }
+
+      const { error } = await supabase.from('matches').upsert({
+        api_id: match.id,
+        home_team_name: match.homeTeam.shortName || match.homeTeam.name,
+        away_team_name: match.awayTeam.shortName || match.awayTeam.name,
+        home_flag: match.homeTeam.crest,
+        away_flag: match.awayTeam.crest,
+        home_score: finalHome,
+        away_score: finalAway,
+        status: finalStatus,
+        kickoff_time: match.utcDate,
+        stage: match.stage === 'GROUP_STAGE' || match.group ? 'group' : 'knockout',
+        group_name: match.group
+      }, { onConflict: 'api_id' });
+
+      if (error) errorsCount++;
+    }
+
+    return res.status(200).json({ message: `Processed ${data.matches.length} matches. Errors: ${errorsCount}` });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
 }
