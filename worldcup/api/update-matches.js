@@ -11,34 +11,23 @@ export default async function handler(req, res) {
   }
 
   const API_KEY = process.env.VITE_API_SPORTS_KEY;
-  // הגדרה רשמית למונדיאל
   const COMPETITION = 'WC'; 
   const SEASON = 2026; 
 
   try {
     const url = `https://api.football-data.org/v4/competitions/${COMPETITION}/matches?season=${SEASON}`;
-    const response = await fetch(url, {
-      headers: { 'X-Auth-Token': API_KEY }
-    });
-    
+    const response = await fetch(url, { headers: { 'X-Auth-Token': API_KEY } });
     const data = await response.json();
 
-    // אם יש שגיאה במשיכת המונדיאל, פשוט מחזירים שגיאה ולא מביאים ליגה אחרת
-    if (data.errorCode) {
-      return res.status(403).json({ error: data.message });
-    }
-
-    if (!data.matches || data.matches.length === 0) {
-      return res.status(200).json({ message: 'No matches found', details: data });
-    }
+    if (data.errorCode) return res.status(403).json({ error: data.message });
+    if (!data.matches || data.matches.length === 0) return res.status(200).json({ message: 'No matches found' });
 
     let errorsCount = 0;
+    let debugMatch = null; 
 
     for (const match of data.matches) {
-      // זיהוי שלב: אם יש 'group' בנתונים של ה-API, זה משחק בית.
       const internalStage = match.stage === 'GROUP_STAGE' || match.group ? 'group' : 'knockout';
 
-      // משיכת התוצאה החכמה: סורק את כל סוגי התוצאות מה-API
       const getScore = (team) => {
         if (!match.score) return null;
         const s = match.score;
@@ -50,8 +39,19 @@ export default async function handler(req, res) {
         return null;
       };
 
-      const homeScore = getScore('home');
-      const awayScore = getScore('away');
+      let homeScore = getScore('home');
+      let awayScore = getScore('away');
+
+      // כאן המערכת לוכדת את הנתונים הגולמיים של ה-API עבור משחקים שהסתיימו או משוחקים כרגע
+      if (match.status === 'FINISHED' || match.status === 'IN_PLAY' || match.status === 'PAUSED') {
+         debugMatch = {
+            teams: `${match.homeTeam?.name} vs ${match.awayTeam?.name}`,
+            apiStatus: match.status,
+            rawScoreFromAPI: match.score, // כאן נראה מה ה-API באמת מחזיר!
+            savedHome: homeScore,
+            savedAway: awayScore
+         };
+      }
 
       const { error } = await supabase.from('matches').upsert({
         api_id: match.id,
@@ -68,12 +68,15 @@ export default async function handler(req, res) {
       }, { onConflict: 'api_id' });
 
       if (error) {
-        console.error("Error inserting match:", error);
         errorsCount++;
       }
     }
 
-    return res.status(200).json({ message: `Success! Processed ${data.matches.length} matches. Errors: ${errorsCount}` });
+    // הפלט הזה יופיע בדפדפן שלך כשתריץ את הקישור
+    return res.status(200).json({ 
+      message: `Success! Processed ${data.matches.length} matches. Errors: ${errorsCount}`, 
+      investigation: debugMatch || "No recent matches to debug"
+    });
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
