@@ -12,26 +12,33 @@ export default async function handler(req, res) {
 
   const API_KEY = process.env.VITE_API_SPORTS_KEY;
   const COMPETITION = 'WC'; 
-  const SEASON = 2026; 
 
   try {
-    // ריסוק המטמון של Vercel - הוספת חותמת זמן כדי שכל קריאה תהיה חדשה לגמרי
-    const timestamp = Date.now();
-    const url = `https://api.football-data.org/v4/competitions/${COMPETITION}/matches?season=${SEASON}&nocache=${timestamp}`;
+    // --- השינוי הקריטי ---
+    // הגדרת חלון זמן של אתמול עד מחר כדי להכריח את ה-API למשוך נתוני לייב
+    const now = new Date();
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const dateFrom = yesterday.toISOString().split('T')[0];
+    const dateTo = tomorrow.toISOString().split('T')[0];
+
+    // הכתובת החדשה שפונה לנתונים החיים של הימים הספציפיים
+    const url = `https://api.football-data.org/v4/competitions/${COMPETITION}/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`;
     
-    // שליחת פקודת no-store שמונעת מ-Vercel למחזר תשובות ישנות
     const response = await fetch(url, { 
       headers: { 'X-Auth-Token': API_KEY },
-      cache: 'no-store' 
+      cache: 'no-store'
     });
     
     const data = await response.json();
 
     if (data.errorCode) return res.status(403).json({ error: data.message });
-    if (!data.matches || data.matches.length === 0) return res.status(200).json({ message: 'No matches found' });
+    if (!data.matches || data.matches.length === 0) return res.status(200).json({ message: 'No live matches in window' });
 
     let errorsCount = 0;
-    let debugMatch = null; 
 
     for (const match of data.matches) {
       const internalStage = match.stage === 'GROUP_STAGE' || match.group ? 'group' : 'knockout';
@@ -49,17 +56,6 @@ export default async function handler(req, res) {
 
       let homeScore = getScore('home');
       let awayScore = getScore('away');
-
-      // כאן המערכת לוכדת את הנתונים הגולמיים של ה-API
-      if (match.status === 'FINISHED' || match.status === 'IN_PLAY' || match.status === 'PAUSED') {
-         debugMatch = {
-            teams: `${match.homeTeam?.name} vs ${match.awayTeam?.name}`,
-            apiStatus: match.status,
-            rawScoreFromAPI: match.score,
-            savedHome: homeScore,
-            savedAway: awayScore
-         };
-      }
 
       const { error } = await supabase.from('matches').upsert({
         api_id: match.id,
@@ -81,8 +77,8 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({ 
-      message: `Success! Processed ${data.matches.length} matches. Errors: ${errorsCount}`, 
-      investigation: debugMatch || "No recent matches to debug"
+      message: `Success! Processed ${data.matches.length} LIVE matches. Errors: ${errorsCount}`,
+      rawSample: data.matches.length > 0 ? { status: data.matches[0].status, score: data.matches[0].score } : null
     });
   } catch (error) {
     return res.status(500).json({ error: error.message });
