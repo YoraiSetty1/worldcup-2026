@@ -122,7 +122,7 @@ export function Roasts() {
       <div className="bg-red-500/10 border border-red-500/20 rounded-2xl p-4 flex gap-3 items-start">
         <AlertTriangle className="text-red-500 shrink-0 mt-0.5" size={18} />
         <p className="text-xs text-muted-foreground font-medium leading-relaxed">
-          מצאתם חבר שמתנשא או שמילא הימורים הזויים? תפתחו עליו Roast. אם <span className="font-bold text-red-500">עוד 4 חברים</span> יצטרפו אליכם, הבוט יפוצץ את הצ'אט וישלח לו התראה קשוחה לנייד!
+          מצאתם חבר שמתנשא או שמילא הימורים הזויים? תפתחו עליו Roast. אם <span className="font-bold text-red-500">עוד 2 חברים</span> יצטרפו אליכם, הבוט יפוצץ את הצ'אט וישלח לו התראה קשוחה לנייד!
         </p>
       </div>
 
@@ -159,13 +159,13 @@ export function Roasts() {
                     <span className="text-[10px] text-muted-foreground font-medium">הועלה על ידי {creatorName}</span>
                   </div>
                   <div className="text-xs font-black bg-red-500/10 text-red-600 px-2 py-1 rounded-lg flex items-center gap-1">
-                    <Users size={12} /> {votesCount}/5 חתמו
+                    <Users size={12} /> {votesCount}/3 חתמו
                   </div>
                 </div>
 
                 {/* מד התקדמות ההצבעות */}
                 <div className="w-full bg-muted h-2.5 rounded-full mb-3 overflow-hidden border border-border/40">
-                  <motion.div className="bg-gradient-to-r from-orange-500 to-red-600 h-full" initial={{ width: 0 }} animate={{ width: `${(votesCount / 5) * 100}%` }} />
+                  <motion.div className="bg-gradient-to-r from-orange-500 to-red-600 h-full" initial={{ width: 0 }} animate={{ width: `${(votesCount / 3) * 100}%` }} />
                 </div>
                 
                 {/* רשימת מי שכבר חתם */}
