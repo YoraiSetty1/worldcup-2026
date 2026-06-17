@@ -30,7 +30,7 @@ export default function Matches() {
   const [pendingBets, setPendingBets] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [tab, setTab] = useState('group');
+  const [tab, setTab] = useState('upcoming'); // שונה ל-upcoming במקום group
 
   const [friendsModalMatch, setFriendsModalMatch] = useState(null);
   const [friendsBetsList, setFriendsBetsList] = useState([]);
@@ -160,7 +160,7 @@ export default function Matches() {
             let isLocked = false;
             const status = m.status?.toUpperCase() || 'SCHEDULED';
 
-            if (['FINISHED', 'AWARDED', 'CANCELLED'].includes(status)) {
+            if (['FINISHED', 'AWARDED', 'CANCELLED', 'FT', 'AET', 'PEN'].includes(status)) {
               isLocked = true;
             } else if (['PAUSED'].includes(status)) {
               isLocked = true; // חסימה טוטאלית במחצית
@@ -192,16 +192,21 @@ export default function Matches() {
 
   if (loading) return <div className="p-8 text-center animate-pulse font-black text-muted-foreground">טוען משחקים...</div>;
 
-  // וידוא הרמטי לשלב הבתים מול נוקאאוט
+  // סינון למשחקים שנגמרו מול המשחקים הבאים
   const filteredMatches = matches.filter(m => {
-    const stage = m.stage?.toLowerCase() || 'group';
-    // אם זה מכיל את המילה group, זה שלב הבתים. אם לא - זה בוודאות נוקאאוט.
-    const isGroup = stage === 'group' || stage === 'group_stage' || stage === 'regular_season';
-    return tab === 'group' ? isGroup : !isGroup;
+    const status = m.status?.toUpperCase() || 'SCHEDULED';
+    const isFinished = ['FINISHED', 'AWARDED', 'CANCELLED', 'FT', 'AET', 'PEN'].includes(status);
+    return tab === 'finished' ? isFinished : !isFinished;
   });
   
-  // מסדרים את המשחקים לפי זמן (כדי שיופיעו ברצף כרונולוגי: מה שנגמר למעלה, הבאים למטה)
-  filteredMatches.sort((a, b) => new Date(a.kickoff_time) - new Date(b.kickoff_time));
+  // מסדרים את המשחקים לפי כיוון הזמן המתאים ללשונית
+  filteredMatches.sort((a, b) => {
+    if (tab === 'upcoming') {
+      return new Date(a.kickoff_time) - new Date(b.kickoff_time); // מהקרוב לרחוק (כרונולוגי רגיל)
+    } else {
+      return new Date(b.kickoff_time) - new Date(a.kickoff_time); // במשחקים שנגמרו: מהאחרון שהסתיים לישן ביותר
+    }
+  });
 
   return (
     <div className="max-w-2xl mx-auto pb-24 px-4 pt-4 relative">
@@ -216,8 +221,9 @@ export default function Matches() {
         )}
       </div>
 
+      {/* הכפתורים החדשים - המשחקים הבאים מול משחקים שנגמרו */}
       <div className="flex bg-muted p-1 rounded-lg mb-6">
-        {[['group', 'שלב הבתים'], ['knockout', 'נוקאאוט']].map(([val, label]) => (
+        {[['upcoming', 'המשחקים הבאים'], ['finished', 'משחקים שנגמרו']].map(([val, label]) => (
           <button key={val} onClick={() => setTab(val)}
             className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${tab === val ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
             {label}
@@ -227,13 +233,13 @@ export default function Matches() {
 
       <div className="space-y-6">
         {filteredMatches.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8 font-medium italic">אין משחקים בשלב זה</p>
+          <p className="text-center text-muted-foreground py-8 font-medium italic">אין משחקים להצגה כרגע</p>
         ) : (
           <div className="space-y-6 mt-4">
             {renderMatchList(groupMatchesByDay(filteredMatches))}
           </div>
         )}
-      </div> {/* ה-div שסידר את הקריסה! */}
+      </div>
 
       {friendsModalMatch && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
