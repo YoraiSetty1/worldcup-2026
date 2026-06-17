@@ -1,7 +1,7 @@
 // Profile.jsx
 import { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
-import { User, Camera, Loader2 } from 'lucide-react';
+import { User, Camera, Loader2, Lock } from 'lucide-react';
 import { supabase, auth } from '../lib/supabase.js';
 import { toast } from 'sonner';
 import { useAuth } from '../lib/AuthContext';
@@ -124,13 +124,11 @@ export function Profile() {
     e.preventDefault();
     setSaving(true);
     try {
-      // עדכון בטוח לפי אימייל המשתמש
+      // עדכון בטוח לפי אימייל המשתמש (ללא שמירת שדות הבונוס הנעולים כדי למנוע מעקפים)
       const { error } = await supabase.from('profiles')
         .update({
           nickname: form.nickname,
           favorite_team: form.favorite_team,
-          predicted_winner: form.predicted_winner,
-          predicted_top_scorer: form.predicted_top_scorer,
           avatar_url: form.avatar_url
         })
         .eq('email', user?.email);
@@ -190,29 +188,40 @@ export function Profile() {
         </div>
 
         <div className="pt-4 border-t border-dashed border-border">
-          <h3 className="text-sm font-black text-primary mb-3 uppercase tracking-wider">הימורי בונוס (10 נק׳ כל אחד)</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-black text-primary uppercase tracking-wider">הימורי בונוס (10 נק׳ כל אחד)</h3>
+          </div>
+          <p className="text-xs font-bold text-red-500 mb-4 bg-red-500/10 p-2 rounded-lg inline-block border border-red-500/20">
+            הטורניר החל! הימורי הבונוס נעולים סופית.
+          </p>
           
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium block mb-1">הנבחרת שתזכה במונדיאל</label>
-              <select value={form.predicted_winner} onChange={e => setForm(f => ({ ...f, predicted_winner: e.target.value }))}
-                className="w-full border border-input rounded-lg px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary">
-                <option value="">-- מי תניף את הגביע? --</option>
-                {TEAMS.map(team => <option key={team} value={team}>{team}</option>)}
-              </select>
+              <div className="relative">
+                <select value={form.predicted_winner} disabled
+                  className="w-full border border-input rounded-lg px-3 py-2.5 text-sm bg-muted text-muted-foreground opacity-70 cursor-not-allowed appearance-none">
+                  <option value="">-- מי תניף את הגביע? --</option>
+                  {TEAMS.map(team => <option key={team} value={team}>{team}</option>)}
+                </select>
+                <Lock size={16} className="absolute left-3 top-3 text-muted-foreground opacity-60" />
+              </div>
             </div>
 
             <div>
               <label className="text-sm font-medium block mb-1">מלך השערים</label>
-              <select value={form.predicted_top_scorer} onChange={e => setForm(f => ({ ...f, predicted_top_scorer: e.target.value }))}
-                className="w-full border border-input rounded-lg px-3 py-2.5 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary">
-                <option value="">-- בחר שחקן --</option>
-                {Object.entries(PLAYERS_BY_TEAM).map(([team, players]) => (
-                  <optgroup key={team} label={team}>
-                    {players.map(player => <option key={player} value={player}>{player}</option>)}
-                  </optgroup>
-                ))}
-              </select>
+              <div className="relative">
+                <select value={form.predicted_top_scorer} disabled
+                  className="w-full border border-input rounded-lg px-3 py-2.5 text-sm bg-muted text-muted-foreground opacity-70 cursor-not-allowed appearance-none">
+                  <option value="">-- בחר שחקן --</option>
+                  {Object.entries(PLAYERS_BY_TEAM).map(([team, players]) => (
+                    <optgroup key={team} label={team}>
+                      {players.map(player => <option key={player} value={player}>{player}</option>)}
+                    </optgroup>
+                  ))}
+                </select>
+                <Lock size={16} className="absolute left-3 top-3 text-muted-foreground opacity-60" />
+              </div>
             </div>
           </div>
         </div>
