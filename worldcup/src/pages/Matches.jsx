@@ -30,7 +30,10 @@ export default function Matches() {
   const [pendingBets, setPendingBets] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [tab, setTab] = useState('upcoming'); // שונה ל-upcoming במקום group
+  
+  // שני משתני סטייט - אחד לשלב בטורניר ואחד למצב המשחק
+  const [stageTab, setStageTab] = useState('group');
+  const [timeTab, setTimeTab] = useState('upcoming');
 
   const [friendsModalMatch, setFriendsModalMatch] = useState(null);
   const [friendsBetsList, setFriendsBetsList] = useState([]);
@@ -192,19 +195,27 @@ export default function Matches() {
 
   if (loading) return <div className="p-8 text-center animate-pulse font-black text-muted-foreground">טוען משחקים...</div>;
 
-  // סינון למשחקים שנגמרו מול המשחקים הבאים
+  // סינון כפול: גם לפי שלב הטורניר וגם לפי סטטוס המשחק
   const filteredMatches = matches.filter(m => {
+    // 1. סינון שלב בטורניר
+    const stage = m.stage?.toLowerCase() || 'group';
+    const isGroup = stage === 'group' || stage === 'group_stage' || stage === 'regular_season';
+    const matchesStage = stageTab === 'group' ? isGroup : !isGroup;
+
+    // 2. סינון מצב המשחק
     const status = m.status?.toUpperCase() || 'SCHEDULED';
     const isFinished = ['FINISHED', 'AWARDED', 'CANCELLED', 'FT', 'AET', 'PEN'].includes(status);
-    return tab === 'finished' ? isFinished : !isFinished;
+    const matchesTime = timeTab === 'finished' ? isFinished : !isFinished;
+
+    return matchesStage && matchesTime;
   });
   
-  // מסדרים את המשחקים לפי כיוון הזמן המתאים ללשונית
+  // סידור כרונולוגי: רגיל למשחקים הבאים, והפוך (מהחדש לישן) למשחקים שנגמרו
   filteredMatches.sort((a, b) => {
-    if (tab === 'upcoming') {
-      return new Date(a.kickoff_time) - new Date(b.kickoff_time); // מהקרוב לרחוק (כרונולוגי רגיל)
+    if (timeTab === 'upcoming') {
+      return new Date(a.kickoff_time) - new Date(b.kickoff_time);
     } else {
-      return new Date(b.kickoff_time) - new Date(a.kickoff_time); // במשחקים שנגמרו: מהאחרון שהסתיים לישן ביותר
+      return new Date(b.kickoff_time) - new Date(a.kickoff_time);
     }
   });
 
@@ -221,11 +232,21 @@ export default function Matches() {
         )}
       </div>
 
-      {/* הכפתורים החדשים - המשחקים הבאים מול משחקים שנגמרו */}
-      <div className="flex bg-muted p-1 rounded-lg mb-6">
+      {/* סינון ראשי: שלב הבתים / נוקאאוט */}
+      <div className="flex bg-muted p-1 rounded-lg mb-3">
+        {[['group', 'שלב הבתים'], ['knockout', 'נוקאאוט']].map(([val, label]) => (
+          <button key={val} onClick={() => setStageTab(val)}
+            className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${stageTab === val ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* סינון משני: המשחקים הבאים / משחקים שנגמרו */}
+      <div className="flex bg-muted/50 p-1 rounded-lg mb-6 border border-border">
         {[['upcoming', 'המשחקים הבאים'], ['finished', 'משחקים שנגמרו']].map(([val, label]) => (
-          <button key={val} onClick={() => setTab(val)}
-            className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${tab === val ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+          <button key={val} onClick={() => setTimeTab(val)}
+            className={`flex-1 py-1.5 text-xs font-bold rounded-md transition-colors ${timeTab === val ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
             {label}
           </button>
         ))}
@@ -233,7 +254,7 @@ export default function Matches() {
 
       <div className="space-y-6">
         {filteredMatches.length === 0 ? (
-          <p className="text-center text-muted-foreground py-8 font-medium italic">אין משחקים להצגה כרגע</p>
+          <p className="text-center text-muted-foreground py-8 font-medium italic">אין משחקים להצגה בקטגוריה זו</p>
         ) : (
           <div className="space-y-6 mt-4">
             {renderMatchList(groupMatchesByDay(filteredMatches))}
