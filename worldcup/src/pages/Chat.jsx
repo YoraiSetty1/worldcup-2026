@@ -23,7 +23,25 @@ export default function Chat() {
   const bottomRef = useRef(null);
 
   useEffect(() => {
-    chatApi.list().then(setMessages);
+    // עוקפים את משיכת הברירת מחדל ומושכים את 100 ההודעות האחרונות
+    const fetchMessages = async () => {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(100);
+        
+      if (data) {
+        // הופכים את המערך כדי שההודעות החדשות יופיעו למטה
+        setMessages(data.reverse());
+      } else if (error) {
+        console.error('Error fetching messages:', error);
+      }
+    };
+    
+    fetchMessages();
+
+    // ההאזנה להודעות חדשות בלייב נשארת כפי שהייתה
     const channel = chatApi.subscribe(payload => {
       setMessages(prev => [...prev, payload.new]);
     });
