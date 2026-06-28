@@ -15,7 +15,7 @@ const ROUNDS = [
 export function WorldCupTable() {
   const [activeTab, setActiveTab] = useState('groups');
   const [standings, setStandings] = useState({});
-  const [knockoutMatches, setKnockoutMatches] = useState([]);
+  const [knockoutMatches, setKnockoutMatches] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -87,8 +87,22 @@ export function WorldCupTable() {
       setStandings(sortedGroups);
 
       // --- סינון משחקי נוקאאוט ---
-      const koMatches = matches.filter(m => ROUNDS.some(r => r.id === m.stage));
-      setKnockoutMatches(koMatches);
+      const knockouts = matches.filter(m => m.stage && m.stage.toLowerCase() === 'knockout');
+      
+      // 1. מיון המשחקים לפי סדר כרונולוגי כדי שהם ייכנסו לשלבים הנכונים אוטומטית
+      const sortedKnockouts = [...knockouts].sort((a, b) => new Date(a.kickoff_time) - new Date(b.kickoff_time));
+
+      // 2. חלוקה חכמה לפי כמות המשחקים בכל שלב במבנה המונדיאל
+      const groupedKnockouts = {
+        round_32: sortedKnockouts.slice(0, 16),
+        round_16: sortedKnockouts.slice(16, 24),
+        quarter_final: sortedKnockouts.slice(24, 28),
+        semi_final: sortedKnockouts.slice(28, 30),
+        // מדלגים על משחק המקום השלישי (אינדקס 30) ולוקחים את אינדקס 31 לגמר
+        final: sortedKnockouts.slice(31, 32)
+      };
+
+      setKnockoutMatches(groupedKnockouts);
 
       setLoading(false);
     }
@@ -189,7 +203,7 @@ export function WorldCupTable() {
           /* אזור העץ מיושר! מתחיל מימין לשמאל */
           <div className="flex gap-8 overflow-x-auto pb-8 snap-x items-stretch">
             {ROUNDS.map((round, index) => {
-              const roundMatches = knockoutMatches.filter(m => m.stage === round.id);
+              const roundMatches = knockoutMatches[round.id] || [];
               
               if (roundMatches.length === 0 && index !== 0) return null;
 
