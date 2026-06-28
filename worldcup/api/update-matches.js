@@ -30,11 +30,13 @@ export default async function handler(req, res) {
     let errorsCount = 0;
 
     for (const match of data.matches) {
-      // 1. קבלת התוצאה מה-API
+      // 1. קבלת התוצאה מה-API (מעודכן ל-90 דקות בלבד)
       const getScore = (team) => {
         if (!match.score) return null;
         const s = match.score;
-        return s.penalties?.[team] ?? s.extraTime?.[team] ?? s.fullTime?.[team] ?? s.regularTime?.[team] ?? s.halfTime?.[team] ?? null;
+        // לוקח אך ורק את התוצאה של 90 הדקות. אם ה-API טרם שחרר אותה ספציפית, משתמש ב-fullTime כגיבוי.
+        // מחקנו מכאן לחלוטין את ה-extraTime וה-penalties!
+        return s.regularTime?.[team] ?? s.fullTime?.[team] ?? s.halfTime?.[team] ?? null;
       };
 
       const apiHome = getScore('home');
@@ -49,11 +51,9 @@ export default async function handler(req, res) {
         .single();
 
       // 3. לוגיקת החלטה: האם לעדכן?
-      // אם ב-DB יש כבר תוצאה וה-API שולח NULL, אל תעדכן.
       let finalHome = apiHome !== null ? apiHome : (existingMatch?.home_score ?? null);
       let finalAway = apiAway !== null ? apiAway : (existingMatch?.away_score ?? null);
       
-      // אם המשחק נגמר ב-DB, אל תיתן לו לחזור להיות TIMED
       let finalStatus = apiStatus;
       if (existingMatch && (existingMatch.status === 'finished' || existingMatch.status === 'ft') && apiStatus === 'timed') {
         finalStatus = existingMatch.status;
