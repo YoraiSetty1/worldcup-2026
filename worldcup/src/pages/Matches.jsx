@@ -32,7 +32,7 @@ export default function Matches() {
   const [saving, setSaving] = useState(false);
   
   // שני משתני סטייט - אחד לשלב בטורניר ואחד למצב המשחק
-  const [stageTab, setStageTab] = useState('knockout');
+  const [stageTab, setStageTab] = useState('group');
   const [timeTab, setTimeTab] = useState('upcoming');
 
   const [friendsModalMatch, setFriendsModalMatch] = useState(null);
@@ -232,7 +232,15 @@ export default function Matches() {
         )}
       </div>
 
-      {/* הוסר הסינון הראשי (שלב הבתים / נוקאאוט) - העמוד נעול על נוקאאוט */}
+      {/* סינון ראשי: שלב הבתים / נוקאאוט */}
+      <div className="flex bg-muted p-1 rounded-lg mb-3">
+        {[['group', 'שלב הבתים'], ['knockout', 'נוקאאוט']].map(([val, label]) => (
+          <button key={val} onClick={() => setStageTab(val)}
+            className={`flex-1 py-2 text-sm font-bold rounded-md transition-colors ${stageTab === val ? 'bg-background shadow text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+            {label}
+          </button>
+        ))}
+      </div>
 
       {/* סינון משני: המשחקים הבאים / משחקים שנגמרו */}
       <div className="flex bg-muted/50 p-1 rounded-lg mb-6 border border-border">
