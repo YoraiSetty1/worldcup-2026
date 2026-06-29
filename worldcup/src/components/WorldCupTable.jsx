@@ -80,7 +80,12 @@ export function WorldCupTable() {
 
       // --- סינון משחקי נוקאאוט ---
       const knockouts = matches.filter(m => m.stage && m.stage.toLowerCase() === 'knockout');
-      const sortedKnockouts = [...knockouts].sort((a, b) => new Date(a.kickoff_time) - new Date(b.kickoff_time));
+      
+      // 🚨 התיקון הקריטי: מיון לפי api_id (המזהה הרשמי של מבנה העץ) ולא לפי הזמן!
+      const sortedKnockouts = [...knockouts].sort((a, b) => {
+        if (a.api_id && b.api_id) return Number(a.api_id) - Number(b.api_id);
+        return new Date(a.kickoff_time) - new Date(b.kickoff_time); // גיבוי למקרה שחסר מזהה
+      });
 
       const groupedKnockouts = {
         round_32: sortedKnockouts.slice(0, 16),
@@ -97,8 +102,6 @@ export function WorldCupTable() {
     fetchAndCalculate();
   }, []);
 
-  // הפונקציה המתוקנת - חיתוך ישר באמצע!
-  // חצי ראשון של המשחקים ירוץ בצד ימין, חצי שני בצד שמאל. ככה ההצלבות נשמרות באופן מושלם.
   const getSides = (arr = []) => {
     const mid = Math.ceil((arr.length || 0) / 2);
     return {
@@ -112,7 +115,6 @@ export function WorldCupTable() {
   const qf = getSides(knockoutMatches.quarter_final);
   const sf = getSides(knockoutMatches.semi_final);
 
-  // הוספנו "slots" (כמות משבצות) כדי שהעץ תמיד ישמור על פרופורציות, גם אם חסרים משחקים!
   const treeColumns = [
     { id: 'r32_right', title: '32 האחרונות', matches: r32.right, slots: 8 },
     { id: 'r16_right', title: 'שמינית גמר', matches: r16.right, slots: 4 },
@@ -217,17 +219,15 @@ export function WorldCupTable() {
             </div>
           )
         ) : (
-          /* אזור העץ הסימטרי עם מטריצת גבהים מתמטית */
           <div className="flex overflow-x-auto pb-12 snap-x items-stretch min-h-[700px] gap-0" dir="rtl">
             {treeColumns.map((col, colIdx) => {
-              // מדלגים על עמודות ריקות רק אם הן בשוליים (כדי למנוע שטח מת לפני שהטורניר הגיע לשלבים האלה)
               if (col.matches.length === 0 && !col.isFinal && col.slots > 4) return null;
 
               const isRightSide = colIdx < 4;
               const isLeftSide = colIdx > 4;
               const isFinal = col.isFinal;
-              const hasIncoming = colIdx !== 0 && colIdx !== 8; // האם יש שלב קודם שממנו צריך להיכנס קו
-              const hasPair = col.slots > 1; // האם יש משחקים שצריכים "להיפגש" בסוגריים
+              const hasIncoming = colIdx !== 0 && colIdx !== 8; 
+              const hasPair = col.slots > 1; 
 
               return (
                 <div key={col.id} className="flex flex-col w-[300px] shrink-0 snap-center">
@@ -236,7 +236,6 @@ export function WorldCupTable() {
                     {col.title}
                   </div>
 
-                  {/* חלוקת הגובה בצורה מתמטית מושלמת */}
                   <div className="flex-1 flex flex-col">
                     {Array.from({ length: col.slots }).map((_, matchIdx) => {
                       const m = col.matches[matchIdx];
@@ -245,20 +244,15 @@ export function WorldCupTable() {
                       return (
                         <div key={m ? m.id : `${col.id}-${matchIdx}`} className="flex-1 flex flex-col justify-center relative px-6 py-2 group">
                           
-                          {/* === קווי חיבור (סוגריים מרובעים) === */}
-                          {/* צד ימין - זורם שמאלה למרכז */}
                           {hasPair && isRightSide && isTop && <div className="absolute top-1/2 left-0 w-6 h-[calc(50%+2px)] border-l-2 border-b-2 border-muted-foreground/30 rounded-bl-lg" />}
                           {hasPair && isRightSide && !isTop && <div className="absolute bottom-1/2 left-0 w-6 h-[calc(50%+2px)] border-l-2 border-t-2 border-muted-foreground/30 rounded-tl-lg" />}
                           
-                          {/* צד שמאל - זורם ימינה למרכז */}
                           {hasPair && isLeftSide && isTop && <div className="absolute top-1/2 right-0 w-6 h-[calc(50%+2px)] border-r-2 border-b-2 border-muted-foreground/30 rounded-br-lg" />}
                           {hasPair && isLeftSide && !isTop && <div className="absolute bottom-1/2 right-0 w-6 h-[calc(50%+2px)] border-r-2 border-t-2 border-muted-foreground/30 rounded-tr-lg" />}
                           
-                          {/* קווים ישרים יוצאים (לחצי הגמר שאין לו זוג) */}
                           {!hasPair && !isFinal && isRightSide && <div className="absolute top-1/2 left-0 w-6 border-t-2 border-muted-foreground/30" />}
                           {!hasPair && !isFinal && isLeftSide && <div className="absolute top-1/2 right-0 w-6 border-t-2 border-muted-foreground/30" />}
 
-                          {/* === קווים נכנסים מהשלב הקודם === */}
                           {hasIncoming && isRightSide && <div className="absolute top-1/2 right-0 w-6 border-t-2 border-muted-foreground/30" />}
                           {hasIncoming && isLeftSide && <div className="absolute top-1/2 left-0 w-6 border-t-2 border-muted-foreground/30" />}
                           {isFinal && (
@@ -268,7 +262,6 @@ export function WorldCupTable() {
                             </>
                           )}
 
-                          {/* הקלף של המשחק */}
                           <div className={`bg-background rounded-xl relative z-10 w-full ${isFinal ? 'ring-2 ring-primary ring-offset-4 ring-offset-background scale-105 shadow-2xl' : ''}`}>
                             {m ? (
                               <MatchCard match={m} compact={true} />
