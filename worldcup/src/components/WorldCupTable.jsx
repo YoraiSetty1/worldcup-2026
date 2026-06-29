@@ -2,7 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { Table, Network, Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase.js';
-import MatchCard from '../components/MatchCard';
+import moment from 'moment';
+import 'moment/locale/he';
+
+moment.locale('he');
 
 export function WorldCupTable() {
   const [activeTab, setActiveTab] = useState('knockout');
@@ -10,7 +13,6 @@ export function WorldCupTable() {
   const [knockoutMatches, setKnockoutMatches] = useState({});
   const [loading, setLoading] = useState(true);
   
-  // רפרנס כדי שנוכל לגלול אוטומטית למרכז העץ
   const finalColumnRef = useRef(null);
 
   useEffect(() => {
@@ -81,7 +83,7 @@ export function WorldCupTable() {
 
       setStandings(sortedGroups);
 
-      // --- סינון משחקי נוקאאוט (ממוין לפי המזהה הרשמי של פיפ"א) ---
+      // --- סינון משחקי נוקאאוט ---
       const knockouts = matches.filter(m => m.stage && m.stage.toLowerCase() === 'knockout');
       const sortedKnockouts = [...knockouts].sort((a, b) => {
         if (a.api_id && b.api_id) return Number(a.api_id) - Number(b.api_id);
@@ -103,7 +105,6 @@ export function WorldCupTable() {
     fetchAndCalculate();
   }, []);
 
-  // הפעלת הגלילה האוטומטית לאמצע העץ כאשר הטלוידאו נטען או מחליפים טאב
   useEffect(() => {
     if (activeTab === 'knockout' && finalColumnRef.current && !loading) {
       setTimeout(() => {
@@ -229,8 +230,7 @@ export function WorldCupTable() {
             </div>
           )
         ) : (
-          /* הוספתי פאדינג בצדדים px-4 md:px-12 כדי שהעץ לא ידבק למסך בסוף הגלילה */
-          <div className="flex overflow-x-auto pb-12 snap-x items-stretch min-h-[700px] gap-0 px-4 md:px-12" dir="rtl">
+          <div className="flex overflow-x-auto pb-12 snap-x items-stretch min-h-[900px] gap-0 px-4 md:px-12" dir="rtl">
             {treeColumns.map((col, colIdx) => {
               if (col.matches.length === 0 && !col.isFinal && col.slots > 4) return null;
 
@@ -244,8 +244,8 @@ export function WorldCupTable() {
                 <div 
                   key={col.id} 
                   ref={isFinal ? finalColumnRef : null}
-                  // רוחב דינמי: 250px בטלפון, עד 320px במחשב - פותר את בעיית הצפיפות!
-                  className={`flex flex-col w-[250px] md:w-[280px] lg:w-[320px] shrink-0 snap-center ${isFinal ? 'mx-4 md:mx-6' : ''}`}
+                  // רוחב הרבה יותר רזה וקומפקטי!
+                  className={`flex flex-col w-[240px] md:w-[260px] shrink-0 snap-center ${isFinal ? 'mx-4 md:mx-6' : ''}`}
                 >
                   <div className={`text-center py-3 font-black text-sm mb-4 mx-4 border-b-2 ${isFinal ? 'text-yellow-500 border-yellow-500' : 'text-foreground border-border'}`}>
                     {isFinal && <Trophy size={16} className="inline-block ml-2 mb-1" />}
@@ -256,6 +256,11 @@ export function WorldCupTable() {
                     {Array.from({ length: col.slots }).map((_, matchIdx) => {
                       const m = col.matches[matchIdx];
                       const isTop = matchIdx % 2 === 0;
+
+                      // לוגיקה חכמה לזיהוי מפסיד והפיכתו לאפור כדי שהמנצח יבלוט
+                      const isFinished = m ? ['FINISHED', 'FT', 'AET', 'PEN'].includes(m.status?.toUpperCase()) : false;
+                      const isHomeLoser = isFinished && m.home_score < m.away_score;
+                      const isAwayLoser = isFinished && m.away_score < m.home_score;
 
                       return (
                         <div key={m ? m.id : `${col.id}-${matchIdx}`} className="flex-1 flex flex-col justify-center relative px-4 md:px-6 py-2 group">
@@ -279,15 +284,41 @@ export function WorldCupTable() {
                             </>
                           )}
 
-                          <div className={`bg-background rounded-xl relative z-10 w-full ${isFinal ? 'ring-2 ring-primary ring-offset-4 ring-offset-background scale-105 shadow-2xl' : ''}`}>
+                          {/* הקובייה החדשה, הנקייה והאלגנטית - קריאה בלבד! */}
+                          <div className={`bg-background rounded-xl relative z-10 w-full shadow-sm border border-border overflow-hidden ${isFinal ? 'ring-2 ring-primary ring-offset-4 ring-offset-background scale-105 shadow-2xl' : ''}`}>
                             {m ? (
-                              <MatchCard match={m} compact={true} />
+                              <div className="flex flex-col w-full h-full">
+                                <div className="text-center text-[10px] md:text-[11px] font-bold text-muted-foreground bg-muted/50 py-1.5 border-b border-border/50">
+                                  {isFinished ? (
+                                    <span className="text-primary font-black">סיום</span>
+                                  ) : (
+                                    <span>{moment(m.kickoff_time).format('dddd, DD.MM - HH:mm')}</span>
+                                  )}
+                                </div>
+                                <div className="flex flex-col justify-center px-3 py-2 gap-2">
+                                   <div className="flex items-center justify-between">
+                                      <div className={`flex items-center gap-2 ${isHomeLoser ? 'opacity-50' : 'opacity-100'}`}>
+                                         {m.home_flag ? <img src={m.home_flag} alt={m.home_team_name} className="w-5 h-3.5 object-cover rounded-sm shadow-sm" /> : <div className="w-5 h-3 bg-muted rounded-sm" />}
+                                         <span className="text-sm font-bold truncate max-w-[110px]">{m.home_team_name || 'טרם נקבע'}</span>
+                                      </div>
+                                      <span className={`text-sm font-black ${isHomeLoser ? 'opacity-50' : 'opacity-100'}`}>{m.home_score ?? '-'}</span>
+                                   </div>
+                                   <div className="flex items-center justify-between">
+                                      <div className={`flex items-center gap-2 ${isAwayLoser ? 'opacity-50' : 'opacity-100'}`}>
+                                         {m.away_flag ? <img src={m.away_flag} alt={m.away_team_name} className="w-5 h-3.5 object-cover rounded-sm shadow-sm" /> : <div className="w-5 h-3 bg-muted rounded-sm" />}
+                                         <span className="text-sm font-bold truncate max-w-[110px]">{m.away_team_name || 'טרם נקבע'}</span>
+                                      </div>
+                                      <span className={`text-sm font-black ${isAwayLoser ? 'opacity-50' : 'opacity-100'}`}>{m.away_score ?? '-'}</span>
+                                   </div>
+                                </div>
+                              </div>
                             ) : (
-                              <div className="bg-muted/10 border border-dashed border-border rounded-xl h-[88px] flex items-center justify-center text-muted-foreground text-xs font-bold">
+                              <div className="bg-muted/10 h-[80px] flex items-center justify-center text-muted-foreground text-xs font-bold">
                                 טרם נקבע
                               </div>
                             )}
                           </div>
+                          
                         </div>
                       );
                     })}
