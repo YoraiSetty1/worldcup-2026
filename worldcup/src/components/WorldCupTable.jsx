@@ -4,14 +4,6 @@ import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase.js';
 import MatchCard from '../components/MatchCard';
 
-const ROUNDS = [
-  { id: 'round_32', title: '32 האחרונות' },
-  { id: 'round_16', title: 'שמינית גמר' },
-  { id: 'quarter_final', title: 'רבע גמר' },
-  { id: 'semi_final', title: 'חצי גמר' },
-  { id: 'final', title: 'גמר' }
-];
-
 export function WorldCupTable() {
   const [activeTab, setActiveTab] = useState('knockout');
   const [standings, setStandings] = useState({});
@@ -105,54 +97,34 @@ export function WorldCupTable() {
     fetchAndCalculate();
   }, []);
 
-  // הפונקציה החכמה החדשה: מחלקת את המשחקים לצד ימין ושמאל לפי לוח הזמנים וההצלבות האמיתיות של פיפ"א
-  const getSides = (matchesArray, round) => {
-    const left = [];
-    const right = [];
-    const arr = matchesArray || [];
-
-    if (round === 'round_32' || round === 'round_16') {
-      // בשלבים המוקדמים פיפ"א עובדת בזוגות (יומיים שמאל, יומיים ימין) כדי שזוג מנצחות ייפגש בשלב הבא
-      for (let i = 0; i < arr.length; i += 4) {
-        if (arr[i]) left.push(arr[i]);
-        if (arr[i+1]) left.push(arr[i+1]);
-        if (arr[i+2]) right.push(arr[i+2]);
-        if (arr[i+3]) right.push(arr[i+3]);
-      }
-    } else if (round === 'quarter_final') {
-      // ברבע הגמר שני המשחקים הראשונים שייכים תמיד לצד אחד של העץ
-      for (let i = 0; i < arr.length; i++) {
-        if (i < 2) left.push(arr[i]);
-        else right.push(arr[i]);
-      }
-    } else if (round === 'semi_final') {
-      // חצי גמר: 1 פה, 1 שם
-      if (arr[0]) left.push(arr[0]);
-      if (arr[1]) right.push(arr[1]);
-    }
-    
-    return { left, right };
+  // הפונקציה המתוקנת - חיתוך ישר באמצע!
+  // חצי ראשון של המשחקים ירוץ בצד ימין, חצי שני בצד שמאל. ככה ההצלבות נשמרות באופן מושלם.
+  const getSides = (arr = []) => {
+    const mid = Math.ceil((arr.length || 0) / 2);
+    return {
+      right: arr.slice(0, mid),
+      left: arr.slice(mid)
+    };
   };
 
-  // בניית משתני העזר לעץ
-  const r32 = getSides(knockoutMatches.round_32, 'round_32');
-  const r16 = getSides(knockoutMatches.round_16, 'round_16');
-  const qf = getSides(knockoutMatches.quarter_final, 'quarter_final');
-  const sf = getSides(knockoutMatches.semi_final, 'semi_final');
+  const r32 = getSides(knockoutMatches.round_32);
+  const r16 = getSides(knockoutMatches.round_16);
+  const qf = getSides(knockoutMatches.quarter_final);
+  const sf = getSides(knockoutMatches.semi_final);
 
-  // מערך העמודות של העץ הסימטרי 
+  // הוספנו "slots" (כמות משבצות) כדי שהעץ תמיד ישמור על פרופורציות, גם אם חסרים משחקים!
   const treeColumns = [
-    { id: 'r32_right', title: '32 האחרונות', matches: r32.right },
-    { id: 'r16_right', title: 'שמינית גמר', matches: r16.right },
-    { id: 'qf_right', title: 'רבע גמר', matches: qf.right },
-    { id: 'sf_right', title: 'חצי גמר', matches: sf.right },
+    { id: 'r32_right', title: '32 האחרונות', matches: r32.right, slots: 8 },
+    { id: 'r16_right', title: 'שמינית גמר', matches: r16.right, slots: 4 },
+    { id: 'qf_right', title: 'רבע גמר', matches: qf.right, slots: 2 },
+    { id: 'sf_right', title: 'חצי גמר', matches: sf.right, slots: 1 },
     
-    { id: 'final', title: 'הגמר הגדול', isFinal: true, matches: knockoutMatches.final || [] },
+    { id: 'final', title: 'הגמר הגדול', isFinal: true, matches: knockoutMatches.final || [], slots: 1 },
     
-    { id: 'sf_left', title: 'חצי גמר', matches: sf.left },
-    { id: 'qf_left', title: 'רבע גמר', matches: qf.left },
-    { id: 'r16_left', title: 'שמינית גמר', matches: r16.left },
-    { id: 'r32_left', title: '32 האחרונות', matches: r32.left }
+    { id: 'sf_left', title: 'חצי גמר', matches: sf.left, slots: 1 },
+    { id: 'qf_left', title: 'רבע גמר', matches: qf.left, slots: 2 },
+    { id: 'r16_left', title: 'שמינית גמר', matches: r16.left, slots: 4 },
+    { id: 'r32_left', title: '32 האחרונות', matches: r32.left, slots: 8 }
   ];
 
   return (
@@ -245,46 +217,70 @@ export function WorldCupTable() {
             </div>
           )
         ) : (
-          <div className="flex gap-8 overflow-x-auto pb-8 snap-x items-stretch" dir="rtl">
-            {treeColumns.map((column, index) => {
-              if (column.matches.length === 0 && !column.isFinal) return null;
+          /* אזור העץ הסימטרי עם מטריצת גבהים מתמטית */
+          <div className="flex overflow-x-auto pb-12 snap-x items-stretch min-h-[700px] gap-0" dir="rtl">
+            {treeColumns.map((col, colIdx) => {
+              // מדלגים על עמודות ריקות רק אם הן בשוליים (כדי למנוע שטח מת לפני שהטורניר הגיע לשלבים האלה)
+              if (col.matches.length === 0 && !col.isFinal && col.slots > 4) return null;
+
+              const isRightSide = colIdx < 4;
+              const isLeftSide = colIdx > 4;
+              const isFinal = col.isFinal;
+              const hasIncoming = colIdx !== 0 && colIdx !== 8; // האם יש שלב קודם שממנו צריך להיכנס קו
+              const hasPair = col.slots > 1; // האם יש משחקים שצריכים "להיפגש" בסוגריים
 
               return (
-                <div key={column.id} className={`flex flex-col min-w-[280px] snap-center ${column.isFinal ? 'mx-2 md:mx-6' : ''}`}>
-                  <div className={`bg-muted text-center py-2 rounded-xl border border-border shadow-sm sticky top-0 z-20 mb-4 ${column.isFinal ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-600 dark:text-yellow-500' : ''}`}>
-                    <h3 className="font-black text-sm flex items-center justify-center gap-2">
-                      {column.isFinal && <Trophy size={16} />}
-                      {column.title}
-                    </h3>
+                <div key={col.id} className="flex flex-col w-[300px] shrink-0 snap-center">
+                  <div className={`text-center py-3 font-black text-sm mb-4 mx-4 border-b-2 ${isFinal ? 'text-yellow-500 border-yellow-500' : 'text-foreground border-border'}`}>
+                    {isFinal && <Trophy size={16} className="inline-block ml-2 mb-1" />}
+                    {col.title}
                   </div>
 
-                  <div className="flex flex-col flex-1 justify-around relative">
-                    {column.matches.length > 0 ? (
-                      column.matches.map((m, i) => (
-                        <motion.div 
-                          key={m.id} 
-                          initial={{ opacity: 0, scale: 0.9 }} 
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: i * 0.1 }}
-                          className="relative my-2 z-10"
-                        >
-                          {index < 8 && (
-                            <div className="absolute top-1/2 -left-4 w-4 h-[2px] bg-border hidden md:block" />
-                          )}
-                          {index > 0 && (
-                            <div className="absolute top-1/2 -right-4 w-4 h-[2px] bg-border hidden md:block" />
+                  {/* חלוקת הגובה בצורה מתמטית מושלמת */}
+                  <div className="flex-1 flex flex-col">
+                    {Array.from({ length: col.slots }).map((_, matchIdx) => {
+                      const m = col.matches[matchIdx];
+                      const isTop = matchIdx % 2 === 0;
+
+                      return (
+                        <div key={m ? m.id : `${col.id}-${matchIdx}`} className="flex-1 flex flex-col justify-center relative px-6 py-2 group">
+                          
+                          {/* === קווי חיבור (סוגריים מרובעים) === */}
+                          {/* צד ימין - זורם שמאלה למרכז */}
+                          {hasPair && isRightSide && isTop && <div className="absolute top-1/2 left-0 w-6 h-[calc(50%+2px)] border-l-2 border-b-2 border-muted-foreground/30 rounded-bl-lg" />}
+                          {hasPair && isRightSide && !isTop && <div className="absolute bottom-1/2 left-0 w-6 h-[calc(50%+2px)] border-l-2 border-t-2 border-muted-foreground/30 rounded-tl-lg" />}
+                          
+                          {/* צד שמאל - זורם ימינה למרכז */}
+                          {hasPair && isLeftSide && isTop && <div className="absolute top-1/2 right-0 w-6 h-[calc(50%+2px)] border-r-2 border-b-2 border-muted-foreground/30 rounded-br-lg" />}
+                          {hasPair && isLeftSide && !isTop && <div className="absolute bottom-1/2 right-0 w-6 h-[calc(50%+2px)] border-r-2 border-t-2 border-muted-foreground/30 rounded-tr-lg" />}
+                          
+                          {/* קווים ישרים יוצאים (לחצי הגמר שאין לו זוג) */}
+                          {!hasPair && !isFinal && isRightSide && <div className="absolute top-1/2 left-0 w-6 border-t-2 border-muted-foreground/30" />}
+                          {!hasPair && !isFinal && isLeftSide && <div className="absolute top-1/2 right-0 w-6 border-t-2 border-muted-foreground/30" />}
+
+                          {/* === קווים נכנסים מהשלב הקודם === */}
+                          {hasIncoming && isRightSide && <div className="absolute top-1/2 right-0 w-6 border-t-2 border-muted-foreground/30" />}
+                          {hasIncoming && isLeftSide && <div className="absolute top-1/2 left-0 w-6 border-t-2 border-muted-foreground/30" />}
+                          {isFinal && (
+                            <>
+                              <div className="absolute top-1/2 right-0 w-6 border-t-2 border-muted-foreground/30" />
+                              <div className="absolute top-1/2 left-0 w-6 border-t-2 border-muted-foreground/30" />
+                            </>
                           )}
 
-                          <div className={`bg-background rounded-xl ${column.isFinal ? 'ring-2 ring-primary ring-offset-4 ring-offset-background scale-105 shadow-xl' : ''}`}>
-                             <MatchCard match={m} compact={true} />
+                          {/* הקלף של המשחק */}
+                          <div className={`bg-background rounded-xl relative z-10 w-full ${isFinal ? 'ring-2 ring-primary ring-offset-4 ring-offset-background scale-105 shadow-2xl' : ''}`}>
+                            {m ? (
+                              <MatchCard match={m} compact={true} />
+                            ) : (
+                              <div className="bg-muted/10 border border-dashed border-border rounded-xl h-[88px] flex items-center justify-center text-muted-foreground text-xs font-bold">
+                                טרם נקבע
+                              </div>
+                            )}
                           </div>
-                        </motion.div>
-                      ))
-                    ) : (
-                      <div className="bg-card/50 border border-dashed border-border rounded-xl h-24 flex items-center justify-center text-muted-foreground text-xs font-bold">
-                        ממתין למשחקים...
-                      </div>
-                    )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );
