@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Table, Network, Trophy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase.js';
@@ -9,6 +9,9 @@ export function WorldCupTable() {
   const [standings, setStandings] = useState({});
   const [knockoutMatches, setKnockoutMatches] = useState({});
   const [loading, setLoading] = useState(true);
+  
+  // רפרנס כדי שנוכל לגלול אוטומטית למרכז העץ
+  const finalColumnRef = useRef(null);
 
   useEffect(() => {
     async function fetchAndCalculate() {
@@ -78,13 +81,11 @@ export function WorldCupTable() {
 
       setStandings(sortedGroups);
 
-      // --- סינון משחקי נוקאאוט ---
+      // --- סינון משחקי נוקאאוט (ממוין לפי המזהה הרשמי של פיפ"א) ---
       const knockouts = matches.filter(m => m.stage && m.stage.toLowerCase() === 'knockout');
-      
-      // 🚨 התיקון הקריטי: מיון לפי api_id (המזהה הרשמי של מבנה העץ) ולא לפי הזמן!
       const sortedKnockouts = [...knockouts].sort((a, b) => {
         if (a.api_id && b.api_id) return Number(a.api_id) - Number(b.api_id);
-        return new Date(a.kickoff_time) - new Date(b.kickoff_time); // גיבוי למקרה שחסר מזהה
+        return new Date(a.kickoff_time) - new Date(b.kickoff_time); 
       });
 
       const groupedKnockouts = {
@@ -101,6 +102,15 @@ export function WorldCupTable() {
 
     fetchAndCalculate();
   }, []);
+
+  // הפעלת הגלילה האוטומטית לאמצע העץ כאשר הטלוידאו נטען או מחליפים טאב
+  useEffect(() => {
+    if (activeTab === 'knockout' && finalColumnRef.current && !loading) {
+      setTimeout(() => {
+        finalColumnRef.current.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }, 300);
+    }
+  }, [activeTab, loading]);
 
   const getSides = (arr = []) => {
     const mid = Math.ceil((arr.length || 0) / 2);
@@ -219,7 +229,8 @@ export function WorldCupTable() {
             </div>
           )
         ) : (
-          <div className="flex overflow-x-auto pb-12 snap-x items-stretch min-h-[700px] gap-0" dir="rtl">
+          /* הוספתי פאדינג בצדדים px-4 md:px-12 כדי שהעץ לא ידבק למסך בסוף הגלילה */
+          <div className="flex overflow-x-auto pb-12 snap-x items-stretch min-h-[700px] gap-0 px-4 md:px-12" dir="rtl">
             {treeColumns.map((col, colIdx) => {
               if (col.matches.length === 0 && !col.isFinal && col.slots > 4) return null;
 
@@ -230,7 +241,12 @@ export function WorldCupTable() {
               const hasPair = col.slots > 1; 
 
               return (
-                <div key={col.id} className="flex flex-col w-[300px] shrink-0 snap-center">
+                <div 
+                  key={col.id} 
+                  ref={isFinal ? finalColumnRef : null}
+                  // רוחב דינמי: 250px בטלפון, עד 320px במחשב - פותר את בעיית הצפיפות!
+                  className={`flex flex-col w-[250px] md:w-[280px] lg:w-[320px] shrink-0 snap-center ${isFinal ? 'mx-4 md:mx-6' : ''}`}
+                >
                   <div className={`text-center py-3 font-black text-sm mb-4 mx-4 border-b-2 ${isFinal ? 'text-yellow-500 border-yellow-500' : 'text-foreground border-border'}`}>
                     {isFinal && <Trophy size={16} className="inline-block ml-2 mb-1" />}
                     {col.title}
@@ -242,23 +258,24 @@ export function WorldCupTable() {
                       const isTop = matchIdx % 2 === 0;
 
                       return (
-                        <div key={m ? m.id : `${col.id}-${matchIdx}`} className="flex-1 flex flex-col justify-center relative px-6 py-2 group">
+                        <div key={m ? m.id : `${col.id}-${matchIdx}`} className="flex-1 flex flex-col justify-center relative px-4 md:px-6 py-2 group">
                           
-                          {hasPair && isRightSide && isTop && <div className="absolute top-1/2 left-0 w-6 h-[calc(50%+2px)] border-l-2 border-b-2 border-muted-foreground/30 rounded-bl-lg" />}
-                          {hasPair && isRightSide && !isTop && <div className="absolute bottom-1/2 left-0 w-6 h-[calc(50%+2px)] border-l-2 border-t-2 border-muted-foreground/30 rounded-tl-lg" />}
+                          {/* קווי החיבור */}
+                          {hasPair && isRightSide && isTop && <div className="absolute top-1/2 left-0 w-4 md:w-6 h-[calc(50%+2px)] border-l-2 border-b-2 border-muted-foreground/30 rounded-bl-lg" />}
+                          {hasPair && isRightSide && !isTop && <div className="absolute bottom-1/2 left-0 w-4 md:w-6 h-[calc(50%+2px)] border-l-2 border-t-2 border-muted-foreground/30 rounded-tl-lg" />}
                           
-                          {hasPair && isLeftSide && isTop && <div className="absolute top-1/2 right-0 w-6 h-[calc(50%+2px)] border-r-2 border-b-2 border-muted-foreground/30 rounded-br-lg" />}
-                          {hasPair && isLeftSide && !isTop && <div className="absolute bottom-1/2 right-0 w-6 h-[calc(50%+2px)] border-r-2 border-t-2 border-muted-foreground/30 rounded-tr-lg" />}
+                          {hasPair && isLeftSide && isTop && <div className="absolute top-1/2 right-0 w-4 md:w-6 h-[calc(50%+2px)] border-r-2 border-b-2 border-muted-foreground/30 rounded-br-lg" />}
+                          {hasPair && isLeftSide && !isTop && <div className="absolute bottom-1/2 right-0 w-4 md:w-6 h-[calc(50%+2px)] border-r-2 border-t-2 border-muted-foreground/30 rounded-tr-lg" />}
                           
-                          {!hasPair && !isFinal && isRightSide && <div className="absolute top-1/2 left-0 w-6 border-t-2 border-muted-foreground/30" />}
-                          {!hasPair && !isFinal && isLeftSide && <div className="absolute top-1/2 right-0 w-6 border-t-2 border-muted-foreground/30" />}
+                          {!hasPair && !isFinal && isRightSide && <div className="absolute top-1/2 left-0 w-4 md:w-6 border-t-2 border-muted-foreground/30" />}
+                          {!hasPair && !isFinal && isLeftSide && <div className="absolute top-1/2 right-0 w-4 md:w-6 border-t-2 border-muted-foreground/30" />}
 
-                          {hasIncoming && isRightSide && <div className="absolute top-1/2 right-0 w-6 border-t-2 border-muted-foreground/30" />}
-                          {hasIncoming && isLeftSide && <div className="absolute top-1/2 left-0 w-6 border-t-2 border-muted-foreground/30" />}
+                          {hasIncoming && isRightSide && <div className="absolute top-1/2 right-0 w-4 md:w-6 border-t-2 border-muted-foreground/30" />}
+                          {hasIncoming && isLeftSide && <div className="absolute top-1/2 left-0 w-4 md:w-6 border-t-2 border-muted-foreground/30" />}
                           {isFinal && (
                             <>
-                              <div className="absolute top-1/2 right-0 w-6 border-t-2 border-muted-foreground/30" />
-                              <div className="absolute top-1/2 left-0 w-6 border-t-2 border-muted-foreground/30" />
+                              <div className="absolute top-1/2 right-0 w-4 md:w-6 border-t-2 border-muted-foreground/30" />
+                              <div className="absolute top-1/2 left-0 w-4 md:w-6 border-t-2 border-muted-foreground/30" />
                             </>
                           )}
 
