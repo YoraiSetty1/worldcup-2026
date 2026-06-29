@@ -4,8 +4,15 @@ import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase.js';
 import MatchCard from '../components/MatchCard';
 
+const ROUNDS = [
+  { id: 'round_32', title: '32 האחרונות' },
+  { id: 'round_16', title: 'שמינית גמר' },
+  { id: 'quarter_final', title: 'רבע גמר' },
+  { id: 'semi_final', title: 'חצי גמר' },
+  { id: 'final', title: 'גמר' }
+];
+
 export function WorldCupTable() {
-  // ברירת המחדל מוגדרת לנוקאאוט
   const [activeTab, setActiveTab] = useState('knockout');
   const [standings, setStandings] = useState({});
   const [knockoutMatches, setKnockoutMatches] = useState({});
@@ -81,7 +88,6 @@ export function WorldCupTable() {
 
       // --- סינון משחקי נוקאאוט ---
       const knockouts = matches.filter(m => m.stage && m.stage.toLowerCase() === 'knockout');
-      
       const sortedKnockouts = [...knockouts].sort((a, b) => new Date(a.kickoff_time) - new Date(b.kickoff_time));
 
       const groupedKnockouts = {
@@ -99,25 +105,54 @@ export function WorldCupTable() {
     fetchAndCalculate();
   }, []);
 
-  // פונקציית עזר לחיתוך המשחקים לשני חצאי העץ (ימין ושמאל)
-  const getHalf = (arr = [], isRightSide = true) => {
-    const mid = Math.ceil((arr.length || 0) / 2);
-    return isRightSide ? arr.slice(mid) : arr.slice(0, mid);
+  // הפונקציה החכמה החדשה: מחלקת את המשחקים לצד ימין ושמאל לפי לוח הזמנים וההצלבות האמיתיות של פיפ"א
+  const getSides = (matchesArray, round) => {
+    const left = [];
+    const right = [];
+    const arr = matchesArray || [];
+
+    if (round === 'round_32' || round === 'round_16') {
+      // בשלבים המוקדמים פיפ"א עובדת בזוגות (יומיים שמאל, יומיים ימין) כדי שזוג מנצחות ייפגש בשלב הבא
+      for (let i = 0; i < arr.length; i += 4) {
+        if (arr[i]) left.push(arr[i]);
+        if (arr[i+1]) left.push(arr[i+1]);
+        if (arr[i+2]) right.push(arr[i+2]);
+        if (arr[i+3]) right.push(arr[i+3]);
+      }
+    } else if (round === 'quarter_final') {
+      // ברבע הגמר שני המשחקים הראשונים שייכים תמיד לצד אחד של העץ
+      for (let i = 0; i < arr.length; i++) {
+        if (i < 2) left.push(arr[i]);
+        else right.push(arr[i]);
+      }
+    } else if (round === 'semi_final') {
+      // חצי גמר: 1 פה, 1 שם
+      if (arr[0]) left.push(arr[0]);
+      if (arr[1]) right.push(arr[1]);
+    }
+    
+    return { left, right };
   };
 
-  // מערך העמודות של העץ הסימטרי (מתחיל מימין, מתכנס לגמר באמצע, וממשיך שמאלה)
+  // בניית משתני העזר לעץ
+  const r32 = getSides(knockoutMatches.round_32, 'round_32');
+  const r16 = getSides(knockoutMatches.round_16, 'round_16');
+  const qf = getSides(knockoutMatches.quarter_final, 'quarter_final');
+  const sf = getSides(knockoutMatches.semi_final, 'semi_final');
+
+  // מערך העמודות של העץ הסימטרי 
   const treeColumns = [
-    { id: 'r32_right', title: '32 האחרונות', matches: getHalf(knockoutMatches.round_32, true) },
-    { id: 'r16_right', title: 'שמינית גמר', matches: getHalf(knockoutMatches.round_16, true) },
-    { id: 'qf_right', title: 'רבע גמר', matches: getHalf(knockoutMatches.quarter_final, true) },
-    { id: 'sf_right', title: 'חצי גמר', matches: getHalf(knockoutMatches.semi_final, true) },
+    { id: 'r32_right', title: '32 האחרונות', matches: r32.right },
+    { id: 'r16_right', title: 'שמינית גמר', matches: r16.right },
+    { id: 'qf_right', title: 'רבע גמר', matches: qf.right },
+    { id: 'sf_right', title: 'חצי גמר', matches: sf.right },
     
     { id: 'final', title: 'הגמר הגדול', isFinal: true, matches: knockoutMatches.final || [] },
     
-    { id: 'sf_left', title: 'חצי גמר', matches: getHalf(knockoutMatches.semi_final, false) },
-    { id: 'qf_left', title: 'רבע גמר', matches: getHalf(knockoutMatches.quarter_final, false) },
-    { id: 'r16_left', title: 'שמינית גמר', matches: getHalf(knockoutMatches.round_16, false) },
-    { id: 'r32_left', title: '32 האחרונות', matches: getHalf(knockoutMatches.round_32, false) }
+    { id: 'sf_left', title: 'חצי גמר', matches: sf.left },
+    { id: 'qf_left', title: 'רבע גמר', matches: qf.left },
+    { id: 'r16_left', title: 'שמינית גמר', matches: r16.left },
+    { id: 'r32_left', title: '32 האחרונות', matches: r32.left }
   ];
 
   return (
@@ -127,7 +162,6 @@ export function WorldCupTable() {
         טבלת המונדיאל
       </h1>
 
-      {/* כפתורי הניווט נשארים כדי שאפשר יהיה לחזור ולראות את הבתים */}
       <div className="flex bg-muted/50 p-1 rounded-xl">
         <button
           onClick={() => setActiveTab('groups')}
@@ -211,10 +245,8 @@ export function WorldCupTable() {
             </div>
           )
         ) : (
-          /* אזור העץ הסימטרי */
           <div className="flex gap-8 overflow-x-auto pb-8 snap-x items-stretch" dir="rtl">
             {treeColumns.map((column, index) => {
-              // לא מדפיסים עמודות ריקות בצדדים כדי לא לתפוס סתם מקום, אבל כן שומרים על המבנה
               if (column.matches.length === 0 && !column.isFinal) return null;
 
               return (
@@ -236,7 +268,6 @@ export function WorldCupTable() {
                           transition={{ delay: i * 0.1 }}
                           className="relative my-2 z-10"
                         >
-                          {/* קו חיבור פנימי - מכל משחק יוצא קו שמאלה (לכיוון האמצע) עד הגמר, ואחרי הגמר יוצא קו ימינה (לכיוון האמצע) */}
                           {index < 8 && (
                             <div className="absolute top-1/2 -left-4 w-4 h-[2px] bg-border hidden md:block" />
                           )}
