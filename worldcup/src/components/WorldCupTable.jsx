@@ -13,7 +13,8 @@ const ROUNDS = [
 ];
 
 export function WorldCupTable() {
-  const [activeTab, setActiveTab] = useState('groups');
+  // השינוי הקטן: ברירת המחדל שונתה ל-knockout
+  const [activeTab, setActiveTab] = useState('knockout');
   const [standings, setStandings] = useState({});
   const [knockoutMatches, setKnockoutMatches] = useState({});
   const [loading, setLoading] = useState(true);
@@ -89,21 +90,17 @@ export function WorldCupTable() {
       // --- סינון משחקי נוקאאוט ---
       const knockouts = matches.filter(m => m.stage && m.stage.toLowerCase() === 'knockout');
       
-      // 1. מיון המשחקים לפי סדר כרונולוגי כדי שהם ייכנסו לשלבים הנכונים אוטומטית
       const sortedKnockouts = [...knockouts].sort((a, b) => new Date(a.kickoff_time) - new Date(b.kickoff_time));
 
-      // 2. חלוקה חכמה לפי כמות המשחקים בכל שלב במבנה המונדיאל
       const groupedKnockouts = {
         round_32: sortedKnockouts.slice(0, 16),
         round_16: sortedKnockouts.slice(16, 24),
         quarter_final: sortedKnockouts.slice(24, 28),
         semi_final: sortedKnockouts.slice(28, 30),
-        // מדלגים על משחק המקום השלישי (אינדקס 30) ולוקחים את אינדקס 31 לגמר
         final: sortedKnockouts.slice(31, 32)
       };
 
       setKnockoutMatches(groupedKnockouts);
-
       setLoading(false);
     }
 
@@ -200,7 +197,6 @@ export function WorldCupTable() {
             </div>
           )
         ) : (
-          /* אזור העץ מיושר! מתחיל מימין לשמאל */
           <div className="flex gap-8 overflow-x-auto pb-8 snap-x items-stretch">
             {ROUNDS.map((round, index) => {
               const roundMatches = knockoutMatches[round.id] || [];
@@ -216,7 +212,6 @@ export function WorldCupTable() {
                     </h3>
                   </div>
 
-                  {/* flex-1 + justify-around עושה את הקסם של המרכוז האנכי! */}
                   <div className="flex flex-col flex-1 justify-around relative">
                     {roundMatches.length > 0 ? (
                       roundMatches.map((m, i) => (
@@ -227,12 +222,10 @@ export function WorldCupTable() {
                           transition={{ delay: i * 0.1 }}
                           className="relative my-2 z-10"
                         >
-                          {/* קו חיבור יוצא שמאלה (לשלב הבא) */}
                           {index < ROUNDS.length - 1 && (
                             <div className="absolute top-1/2 -left-4 w-4 h-[2px] bg-border hidden md:block" />
                           )}
                           
-                          {/* קו חיבור נכנס מימין (מהשלב הקודם) */}
                           {index > 0 && (
                             <div className="absolute top-1/2 -right-4 w-4 h-[2px] bg-border hidden md:block" />
                           )}
