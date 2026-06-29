@@ -31,8 +31,8 @@ export default function Matches() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // שני משתני סטייט - אחד לשלב בטורניר ואחד למצב המשחק
-  const [stageTab, setStageTab] = useState('group');
+  // השינוי היחיד: ברירת המחדל כאן שונתה ל-knockout
+  const [stageTab, setStageTab] = useState('knockout');
   const [timeTab, setTimeTab] = useState('upcoming');
 
   const [friendsModalMatch, setFriendsModalMatch] = useState(null);
@@ -232,7 +232,7 @@ export default function Matches() {
         )}
       </div>
 
-      {/* סינון ראשי: שלב הבתים / נוקאאוט */}
+      {/* סינון ראשי: שלב הבתים / נוקאאוט - הכפתורים חזרו! */}
       <div className="flex bg-muted p-1 rounded-lg mb-3">
         {[['group', 'שלב הבתים'], ['knockout', 'נוקאאוט']].map(([val, label]) => (
           <button key={val} onClick={() => setStageTab(val)}
