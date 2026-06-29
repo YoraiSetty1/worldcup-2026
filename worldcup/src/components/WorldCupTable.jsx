@@ -4,16 +4,8 @@ import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase.js';
 import MatchCard from '../components/MatchCard';
 
-const ROUNDS = [
-  { id: 'round_32', title: '32 האחרונות' },
-  { id: 'round_16', title: 'שמינית גמר' },
-  { id: 'quarter_final', title: 'רבע גמר' },
-  { id: 'semi_final', title: 'חצי גמר' },
-  { id: 'final', title: 'גמר' }
-];
-
 export function WorldCupTable() {
-  // השינוי הקטן: ברירת המחדל שונתה ל-knockout
+  // ברירת המחדל מוגדרת לנוקאאוט
   const [activeTab, setActiveTab] = useState('knockout');
   const [standings, setStandings] = useState({});
   const [knockoutMatches, setKnockoutMatches] = useState({});
@@ -107,6 +99,27 @@ export function WorldCupTable() {
     fetchAndCalculate();
   }, []);
 
+  // פונקציית עזר לחיתוך המשחקים לשני חצאי העץ (ימין ושמאל)
+  const getHalf = (arr = [], isRightSide = true) => {
+    const mid = Math.ceil((arr.length || 0) / 2);
+    return isRightSide ? arr.slice(mid) : arr.slice(0, mid);
+  };
+
+  // מערך העמודות של העץ הסימטרי (מתחיל מימין, מתכנס לגמר באמצע, וממשיך שמאלה)
+  const treeColumns = [
+    { id: 'r32_right', title: '32 האחרונות', matches: getHalf(knockoutMatches.round_32, true) },
+    { id: 'r16_right', title: 'שמינית גמר', matches: getHalf(knockoutMatches.round_16, true) },
+    { id: 'qf_right', title: 'רבע גמר', matches: getHalf(knockoutMatches.quarter_final, true) },
+    { id: 'sf_right', title: 'חצי גמר', matches: getHalf(knockoutMatches.semi_final, true) },
+    
+    { id: 'final', title: 'הגמר הגדול', isFinal: true, matches: knockoutMatches.final || [] },
+    
+    { id: 'sf_left', title: 'חצי גמר', matches: getHalf(knockoutMatches.semi_final, false) },
+    { id: 'qf_left', title: 'רבע גמר', matches: getHalf(knockoutMatches.quarter_final, false) },
+    { id: 'r16_left', title: 'שמינית גמר', matches: getHalf(knockoutMatches.round_16, false) },
+    { id: 'r32_left', title: '32 האחרונות', matches: getHalf(knockoutMatches.round_32, false) }
+  ];
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-black flex items-center gap-2">
@@ -114,6 +127,7 @@ export function WorldCupTable() {
         טבלת המונדיאל
       </h1>
 
+      {/* כפתורי הניווט נשארים כדי שאפשר יהיה לחזור ולראות את הבתים */}
       <div className="flex bg-muted/50 p-1 rounded-xl">
         <button
           onClick={() => setActiveTab('groups')}
@@ -197,40 +211,40 @@ export function WorldCupTable() {
             </div>
           )
         ) : (
-          <div className="flex gap-8 overflow-x-auto pb-8 snap-x items-stretch">
-            {ROUNDS.map((round, index) => {
-              const roundMatches = knockoutMatches[round.id] || [];
-              
-              if (roundMatches.length === 0 && index !== 0) return null;
+          /* אזור העץ הסימטרי */
+          <div className="flex gap-8 overflow-x-auto pb-8 snap-x items-stretch" dir="rtl">
+            {treeColumns.map((column, index) => {
+              // לא מדפיסים עמודות ריקות בצדדים כדי לא לתפוס סתם מקום, אבל כן שומרים על המבנה
+              if (column.matches.length === 0 && !column.isFinal) return null;
 
               return (
-                <div key={round.id} className="flex flex-col min-w-[280px] snap-center">
-                  <div className="bg-muted text-center py-2 rounded-xl border border-border shadow-sm sticky top-0 z-20 mb-4">
-                    <h3 className="font-black text-sm text-foreground flex items-center justify-center gap-2">
-                      {round.id === 'final' && <Trophy size={16} className="text-yellow-500" />}
-                      {round.title}
+                <div key={column.id} className={`flex flex-col min-w-[280px] snap-center ${column.isFinal ? 'mx-2 md:mx-6' : ''}`}>
+                  <div className={`bg-muted text-center py-2 rounded-xl border border-border shadow-sm sticky top-0 z-20 mb-4 ${column.isFinal ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-600 dark:text-yellow-500' : ''}`}>
+                    <h3 className="font-black text-sm flex items-center justify-center gap-2">
+                      {column.isFinal && <Trophy size={16} />}
+                      {column.title}
                     </h3>
                   </div>
 
                   <div className="flex flex-col flex-1 justify-around relative">
-                    {roundMatches.length > 0 ? (
-                      roundMatches.map((m, i) => (
+                    {column.matches.length > 0 ? (
+                      column.matches.map((m, i) => (
                         <motion.div 
                           key={m.id} 
-                          initial={{ opacity: 0, x: -20 }} 
-                          animate={{ opacity: 1, x: 0 }}
+                          initial={{ opacity: 0, scale: 0.9 }} 
+                          animate={{ opacity: 1, scale: 1 }}
                           transition={{ delay: i * 0.1 }}
                           className="relative my-2 z-10"
                         >
-                          {index < ROUNDS.length - 1 && (
+                          {/* קו חיבור פנימי - מכל משחק יוצא קו שמאלה (לכיוון האמצע) עד הגמר, ואחרי הגמר יוצא קו ימינה (לכיוון האמצע) */}
+                          {index < 8 && (
                             <div className="absolute top-1/2 -left-4 w-4 h-[2px] bg-border hidden md:block" />
                           )}
-                          
                           {index > 0 && (
                             <div className="absolute top-1/2 -right-4 w-4 h-[2px] bg-border hidden md:block" />
                           )}
 
-                          <div className="bg-background rounded-xl">
+                          <div className={`bg-background rounded-xl ${column.isFinal ? 'ring-2 ring-primary ring-offset-4 ring-offset-background scale-105 shadow-xl' : ''}`}>
                              <MatchCard match={m} compact={true} />
                           </div>
                         </motion.div>
