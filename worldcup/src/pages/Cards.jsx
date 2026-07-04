@@ -56,7 +56,7 @@ export default function Cards() {
     const now = moment();
     const tomorrow = moment().add(24, 'hours');
     
-    // סינון של משחקים רלוונטיים לפי הסטטוסים החדשים
+    // סינון של משחקים רלוונטיים
     setUpcomingMatches(allMatches.filter(m => 
       moment(m.kickoff_time).isBetween(now.clone().subtract(1, 'hour'), tomorrow) &&
       !['FINISHED', 'AWARDED', 'CANCELLED'].includes(m.status?.toUpperCase())
@@ -87,6 +87,13 @@ export default function Cards() {
     const diffHours = start.diff(now, 'hours', true); 
     const diffMinutes = now.diff(start, 'minutes');    
     const status = match.status?.toUpperCase() || 'SCHEDULED';
+
+    // === התיקון לנקודה 3: חסימה גורפת משלב רבע הגמר ומעלה ===
+    const blockedStages = ['quarter_final', 'semi_final', 'final', 'third_place'];
+    if (blockedStages.includes(match.stage?.toLowerCase())) {
+      return { ok: false, msg: 'לא ניתן להשתמש בקלפים החל משלב רבע הגמר! 🚫' };
+    }
+    // ========================================================
 
     if (ATTACK_CARDS.includes(cardType)) {
       if (diffHours > 4) return { ok: false, msg: 'מוקדם מדי! התקפה מתחילה רק עם נעילת ההימורים (4 שעות לפני).' };
