@@ -30,12 +30,10 @@ export default async function handler(req, res) {
     let errorsCount = 0;
 
     for (const match of data.matches) {
-      // 1. קבלת התוצאה מה-API (מעודכן ל-90 דקות בלבד)
+      // קבלת התוצאה מה-API
       const getScore = (team) => {
         if (!match.score) return null;
         const s = match.score;
-        // לוקח אך ורק את התוצאה של 90 הדקות. אם ה-API טרם שחרר אותה ספציפית, משתמש ב-fullTime כגיבוי.
-        // מחקנו מכאן לחלוטין את ה-extraTime וה-penalties!
         return s.regularTime?.[team] ?? s.fullTime?.[team] ?? s.halfTime?.[team] ?? null;
       };
 
@@ -43,14 +41,35 @@ export default async function handler(req, res) {
       const apiAway = getScore('away');
       const apiStatus = match.status.toLowerCase();
 
-      // 2. קבלת הנתונים הקיימים מה-DB (כדי לא לדרוס בטעות)
+      // === תרגום השלבים מה-API לשמות שה-SQL מצפה לקבל ===
+      let dbStage = 'group';
+      const apiStage = match.stage ? match.stage.toUpperCase() : '';
+      
+      if (apiStage === 'LAST_16' || apiStage === 'ROUND_OF_16') {
+        dbStage = 'round_16';
+      } else if (apiStage === 'QUARTER_FINALS') {
+        dbStage = 'quarter_final';
+      } else if (apiStage === 'SEMI_FINALS') {
+        dbStage = 'semi_final';
+      } else if (apiStage === 'FINAL') {
+        dbStage = 'final';
+      } else if (apiStage === 'THIRD_PLACE') {
+        dbStage = 'third_place';
+      } else if (apiStage === 'LAST_32' || apiStage === 'ROUND_OF_32') {
+        dbStage = 'round_32';
+      } else if (apiStage === 'GROUP_STAGE' || match.group) {
+        dbStage = 'group';
+      } else {
+        dbStage = 'knockout'; 
+      }
+      // ====================================================
+
       const { data: existingMatch } = await supabase
         .from('matches')
         .select('home_score, away_score, status')
         .eq('api_id', match.id)
         .single();
 
-      // 3. לוגיקת החלטה: האם לעדכן?
       let finalHome = apiHome !== null ? apiHome : (existingMatch?.home_score ?? null);
       let finalAway = apiAway !== null ? apiAway : (existingMatch?.away_score ?? null);
       
@@ -69,7 +88,7 @@ export default async function handler(req, res) {
         away_score: finalAway,
         status: finalStatus,
         kickoff_time: match.utcDate,
-        stage: match.stage === 'GROUP_STAGE' || match.group ? 'group' : 'knockout',
+        stage: dbStage, // שינוי: מזריקים את השלב המדויק
         group_name: match.group
       }, { onConflict: 'api_id' });
 
