@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import moment from 'moment';
 import 'moment/locale/he';
-import { ChevronDown, Calendar, Users, X } from 'lucide-react';
+import { ChevronDown, Calendar, Users, X, ShieldAlert } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase, matchesApi, betsApi, cardsApi } from '../lib/supabase.js';
 import MatchCard from '../components/MatchCard';
@@ -31,7 +31,6 @@ export default function Matches() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   
-  // השינוי היחיד: ברירת המחדל כאן שונתה ל-knockout
   const [stageTab, setStageTab] = useState('knockout');
   const [timeTab, setTimeTab] = useState('upcoming');
 
@@ -112,11 +111,14 @@ export default function Matches() {
         const isFlipped = (allCards || []).some(c => c.used_against_email === b.user_email && c.card_type === 'result_flip');
         const hasShield = (allCards || []).some(c => c.user_email === b.user_email && c.card_type === 'shield');
         const isAgnostic = (allCards || []).some(c => c.user_email === b.user_email && c.card_type === 'team_agnostic');
+        // הוספנו בדיקה גם עבור חסימת המדויק
+        const isBlocked = (allCards || []).some(c => c.used_against_email === b.user_email && c.card_type === 'block_exact');
         
         return { 
           ...b, 
           profile, 
           isEffectivelyFlipped: isFlipped && !hasShield,
+          isEffectivelyBlocked: isBlocked && !hasShield,
           isAgnostic 
         };
       });
@@ -166,9 +168,8 @@ export default function Matches() {
             if (['FINISHED', 'AWARDED', 'CANCELLED', 'FT', 'AET', 'PEN'].includes(status)) {
               isLocked = true;
             } else if (['PAUSED'].includes(status)) {
-              isLocked = true; // חסימה טוטאלית במחצית
+              isLocked = true;
             } else if (['IN_PLAY'].includes(status) || (startTime.diff(now, 'minutes') <= 0)) {
-              // חסימה מתמטית: אם עברו 50 דקות, חותכים עניין
               isLocked = isScoreChangeActiveForThisMatch ? now.diff(startTime, 'minutes') > 50 : true;
             } else {
               isLocked = startTime.diff(now, 'minutes') <= 240;
@@ -195,14 +196,11 @@ export default function Matches() {
 
   if (loading) return <div className="p-8 text-center animate-pulse font-black text-muted-foreground">טוען משחקים...</div>;
 
-  // סינון כפול: גם לפי שלב הטורניר וגם לפי סטטוס המשחק
   const filteredMatches = matches.filter(m => {
-    // 1. סינון שלב בטורניר
     const stage = m.stage?.toLowerCase() || 'group';
     const isGroup = stage === 'group' || stage === 'group_stage' || stage === 'regular_season';
     const matchesStage = stageTab === 'group' ? isGroup : !isGroup;
 
-    // 2. סינון מצב המשחק
     const status = m.status?.toUpperCase() || 'SCHEDULED';
     const isFinished = ['FINISHED', 'AWARDED', 'CANCELLED', 'FT', 'AET', 'PEN'].includes(status);
     const matchesTime = timeTab === 'finished' ? isFinished : !isFinished;
@@ -210,7 +208,6 @@ export default function Matches() {
     return matchesStage && matchesTime;
   });
   
-  // סידור כרונולוגי: רגיל למשחקים הבאים, והפוך (מהחדש לישן) למשחקים שנגמרו
   filteredMatches.sort((a, b) => {
     if (timeTab === 'upcoming') {
       return new Date(a.kickoff_time) - new Date(b.kickoff_time);
@@ -232,7 +229,6 @@ export default function Matches() {
         )}
       </div>
 
-      {/* סינון ראשי: שלב הבתים / נוקאאוט - הכפתורים חזרו! */}
       <div className="flex bg-muted p-1 rounded-lg mb-3">
         {[['group', 'שלב הבתים'], ['knockout', 'נוקאאוט']].map(([val, label]) => (
           <button key={val} onClick={() => setStageTab(val)}
@@ -242,7 +238,6 @@ export default function Matches() {
         ))}
       </div>
 
-      {/* סינון משני: המשחקים הבאים / משחקים שנגמרו */}
       <div className="flex bg-muted/50 p-1 rounded-lg mb-6 border border-border">
         {[['upcoming', 'המשחקים הבאים'], ['finished', 'משחקים שנגמרו']].map(([val, label]) => (
           <button key={val} onClick={() => setTimeTab(val)}
@@ -313,6 +308,14 @@ export default function Matches() {
                               ) : (
                                 getBetOutcomeText(b.home_score, b.away_score, friendsModalMatch.home_team_name, friendsModalMatch.away_team_name)
                               )}
+
+                              {/* התוספת של חסימת המדויק כאן */}
+                              {b.isEffectivelyBlocked && (
+                                <div className="text-purple-600 font-black mt-1 flex items-center gap-1">
+                                  <ShieldAlert size={12} /> הותקף בחסימת מדויק 🚫
+                                </div>
+                              )}
+
                             </div>
                           </div>
                         </div>
