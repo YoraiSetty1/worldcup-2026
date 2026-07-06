@@ -37,8 +37,8 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
   
   const isTimeLocked = isFinished || computedLive || isBettingLocked;
   
-  // זה התיקון האגרסיבי: אם קלף מופעל, פותחים את הנעילה בכוח ומתעלמים מכל הנחיה חיצונית (disabled)
-  const isLocked = isScoreChangeActive ? false : (disabled !== undefined ? disabled : isTimeLocked);
+  // === התיקון המרכזי: ביטלנו את המעקף האגרסיבי! הקלף עכשיו מציית לחישוב החכם של 60 הדקות מ-Matches ===
+  const isLocked = disabled !== undefined ? disabled : isTimeLocked;
 
   const stageLabels = {
     group: `בית ${match.group_letter || ''}`,
@@ -99,8 +99,11 @@ export default function MatchCard({ match, bet, onBet, compact = false, disabled
                 <div className="text-3xl font-black italic tracking-tighter">
                   {match.home_score ?? 0} : {match.away_score ?? 0}
                 </div>
-                <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                  <Lock size={10} /> {isBettingLocked && !isFinished && !computedLive ? 'הימורים ננעלו' : 'הימורים סגורים'}
+                <div className="flex items-center gap-1 text-[10px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded text-center">
+                  <Lock size={10} /> 
+                  {isScoreChangeActive && !isFinished 
+                    ? "זמן הקלף פג" 
+                    : (isBettingLocked && !isFinished && !computedLive ? 'הימורים ננעלו' : 'הימורים סגורים')}
                 </div>
               </div>
             ) : (
