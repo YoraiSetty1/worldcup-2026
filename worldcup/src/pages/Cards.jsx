@@ -12,7 +12,7 @@ moment.locale('he');
 const CARD_META = {
   team_agnostic: { label: 'בלי קשר לקבוצה', desc: 'נקודה מובטחת ללא תלות בתוצאה', Icon: Star, color: 'from-yellow-400 to-amber-500' },
   result_flip:   { label: 'היפוך תוצאה',     desc: 'הופך את ניחוש היריב',              Icon: RefreshCw, color: 'from-red-400 to-rose-600' },
-  score_change:  { label: 'שינוי תוצאה',      desc: 'שנה ניחוש אחרי נעילה (עד דקה 50)',   Icon: Zap,       color: 'from-blue-400 to-indigo-600' },
+  score_change:  { label: 'שינוי תוצאה',      desc: 'שנה ניחוש אחרי נעילה (עד דקה 60)',   Icon: Zap,       color: 'from-blue-400 to-indigo-600' },
   block_exact:   { label: 'חסימת מדויק',      desc: 'מבטל ניחוש מדויק של היריב',       Icon: Lock,      color: 'from-purple-400 to-violet-600' },
   shield:        { label: 'מגן',               desc: 'מגן בפני מתקפה (בלי לדעת איזו)',    Icon: Shield,    color: 'from-green-400 to-emerald-600' },
 };
@@ -109,7 +109,7 @@ export default function Cards() {
       if (['PAUSED', 'FINISHED', 'AWARDED', 'CANCELLED'].includes(status)) {
         return { ok: false, msg: 'מאוחר מדי! לא ניתן להפעיל קלף שינוי בהפסקת המחצית או אחריה.' };
       }
-      if (diffMinutes > 50) return { ok: false, msg: 'עברו 50 דקות משעת הבעיטה הרשמית - הקלף ננעל סופית.' };
+      if (diffMinutes > 60) return { ok: false, msg: 'עברו 60 דקות משעת הבעיטה הרשמית - הקלף ננעל סופית.' };
     }
     
     return { ok: true };
@@ -183,7 +183,7 @@ export default function Cards() {
         <h1 className="text-xl font-black flex items-center gap-2"><Shield className="text-primary" size={22} />המלאי הטקטי</h1>
         <div className="grid grid-cols-2 gap-2 mt-3">
           <div className="bg-muted/50 p-2 rounded-lg text-[10px] font-bold text-muted-foreground flex items-center gap-1"><Clock size={12}/> התקפה: 4ש' עד 1ש' לפני</div>
-          <div className="bg-muted/50 p-2 rounded-lg text-[10px] font-bold text-muted-foreground flex items-center gap-1"><Zap size={12}/> שינוי: 4ש' לפני עד דקה 50</div>
+          <div className="bg-muted/50 p-2 rounded-lg text-[10px] font-bold text-muted-foreground flex items-center gap-1"><Zap size={12}/> שינוי: 4ש' לפני עד דקה 60</div>
         </div>
       </div>
 

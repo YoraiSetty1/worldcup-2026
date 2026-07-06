@@ -170,7 +170,7 @@ export default function Matches() {
             } else if (['PAUSED'].includes(status)) {
               isLocked = true;
             } else if (['IN_PLAY'].includes(status) || (startTime.diff(now, 'minutes') <= 0)) {
-              isLocked = isScoreChangeActiveForThisMatch ? now.diff(startTime, 'minutes') > 50 : true;
+              isLocked = isScoreChangeActiveForThisMatch ? now.diff(startTime, 'minutes') > 60 : true;
             } else {
               isLocked = startTime.diff(now, 'minutes') <= 240;
             }
